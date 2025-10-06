@@ -1,4 +1,9 @@
 # Plotting Functions
+#' @importFrom stats sd
+#' @importFrom grDevices pdf dev.off rainbow colorRampPalette
+#' @importFrom ggplot2 ggplot geom_point aes geom_hline annotate xlab ylab theme_minimal .data
+#' @importFrom gplots heatmap.2
+#' @importFrom utils write.csv
 
 plot_mcmc_results <- function(mcmc_result, k, outfile_prefix, plot = TRUE) {
   if (!plot) return()

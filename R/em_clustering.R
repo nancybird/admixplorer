@@ -1,4 +1,7 @@
 # Clustering Algorithms
+#' @importFrom stats dnorm var runif quantile sd kmeans
+#' @importFrom utils flush.console head
+
 
 # Original EM clustering function (without time traveler checks)
 em_clustering_original <- function(dates, std_errors, k = 2, cluster_means=sample(dates, k), max_iter = 10000, epsilon = 1e-6, n_init = 10) {
@@ -815,27 +818,4 @@ process_single_k <- function(k_current, prepared_data, chains, sample_age_est, p
   return(mcmc_result_best)
 }
 
-#' Run clustering analysis for all k values
-#'
-#' @param prepared_data List from prepare_clustering_data
-#' @param ks Vector of k values to try
-#' @param chains Number of MCMC chains
-#' @param sample_age_est Whether to estimate sample ages
-#' @param plot Whether to create plots
-#' @param outfile Output file prefix
-#' @return List of MCMC results for each k
-#' @export
-run_clustering_analysis <- function(prepared_data, ks, chains, sample_age_est, plot, outfile) {
-  print("CLUSTERING STAGE")
 
-  all_mcmc_results <- list()
-
-  for (k_current in ks) {
-    result <- process_single_k(k_current, prepared_data, chains, sample_age_est, plot, outfile)
-    if (!is.null(result)) {
-      all_mcmc_results[[as.character(k_current)]] <- result
-    }
-  }
-
-  return(all_mcmc_results)
-}

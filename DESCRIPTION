@@ -1,16 +1,31 @@
 Package: admixplorer
-Type: Package
-Title: What the Package Does (Title Case)
-Version: 0.1.0
-Authors@R: c(
-    person(
-      "Jane", "Doe",
-      email = "jane@example.com",
-      role = c("aut", "cre")
-    )
-  )
-Description: More about what it does (maybe more than one line).
-    Continuation lines should be indented.
-License: What license is it under?
+Title: Admixture Date Clustering and Age Refinement
+Version: 1.0.0
+Authors@R: 
+    person("Nancy", "Bird", , "nancy.bird.18@ucl.ac.uk", role = c("aut", "cre"))
+Description: This package takes admixture date estimates and their
+    standard deviations from individuals (which can have variable sampling
+    ages, in e.g. ancient individuals) and clusters them with MCMC to
+    determine the number of distinct admixture pulses. It can also
+    re-estimate ancient individuals sampling ages based on the shared
+    admixture date. Overall it borrows power to improve your joint date
+    estimate.
+License: GPL (>= 3)
+Depends: 
+    R (>= 4.0.0)
+Imports: 
+    ggplot2,
+    gplots,
+    grDevices,
+    stats,
+    utils
+Suggests: 
+    knitr,
+    optparse,
+    rmarkdown,
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
 Encoding: UTF-8
 LazyData: true
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.3

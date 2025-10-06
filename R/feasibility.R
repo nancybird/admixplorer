@@ -1,4 +1,6 @@
 # Feasibility and Assignment Testing
+#' @importFrom stats runif quantile kmeans
+
 
 # Helper: test one assignment for ancient time-traveler violations
 test_valid_assignment <- function(

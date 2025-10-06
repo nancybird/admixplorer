@@ -1,5 +1,4 @@
 # Likelihood and Distribution Functions
-
 estimate_alpha_beta <- function(sds) {
   var_sqs <- sds^2
   
@@ -76,12 +75,3 @@ nig_log_likelihood <- function(cluster_assignments, cluster_means, std_errors, d
   ))
 }
 
-
-current_log_likelihood <- function(cluster_assignments, cluster_means,std_errors,dates, n) {
-  log_likelihood <- 0
-  for (i in 1:n) {
-    log_likelihood <- log_likelihood + dnorm(dates[i], mean = cluster_means[cluster_assignments[i]], 
-                                             sd = std_errors[i], log = TRUE)
-  }
-  return(log_likelihood)
-}
