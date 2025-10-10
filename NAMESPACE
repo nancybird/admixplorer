@@ -2,7 +2,7 @@
 
 export(admixplorer)
 export(apply_threshold_selection)
-export(calculate_likelihood_improvements)
+export(clustering_strength)
 export(generate_final_output)
 export(prepare_clustering_data)
 export(read_and_filter_data)

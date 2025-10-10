@@ -2,22 +2,22 @@
 % Please edit documentation in R/clustering_analysis.R
 \name{apply_threshold_selection}
 \alias{apply_threshold_selection}
-\title{Apply threshold-based k selection}
+\title{Apply threshold-based k selection with clustering strength}
 \usage{
-apply_threshold_selection(improvements, method, fst, cv)
+apply_threshold_selection(improvements, method, cv, all_mcmc_results)
 }
 \arguments{
 \item{improvements}{List from calculate_likelihood_improvements}
 
 \item{method}{Method used (GLOBETROTTER or DATES)}
 
-\item{fst}{FST between admixing populations}
-
 \item{cv}{Coefficient of variation for scaling}
+
+\item{all_mcmc_results}{List of all MCMC results (needed for clustering strength)}
 }
 \value{
 Recommended k value
 }
 \description{
-Apply threshold-based k selection
+Apply threshold-based k selection with clustering strength
 }

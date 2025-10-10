@@ -13,7 +13,6 @@ generate_final_output(
   sample_age_est,
   outfile,
   method,
-  fst,
   thresholds_info
 )
 }
@@ -33,8 +32,6 @@ generate_final_output(
 \item{outfile}{Output file prefix}
 
 \item{method}{Method used}
-
-\item{fst}{FST value used}
 
 \item{thresholds_info}{Threshold information from analysis}
 }

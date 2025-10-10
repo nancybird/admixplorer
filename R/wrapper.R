@@ -1,24 +1,23 @@
-#' Main wrapper function for admixcraft analysis
+#' Main wrapper function for admixplorer analysis
 #'
 #' @param infile Path to input file
 #' @param outfile Output file prefix
 #' @param method Method to use ("GLOBETROTTER" or "DATES")
 #' @param ks Comma-separated string of k values to try (default "1,2,3,4")
 #' @param mcmc_chains Number of MCMC chains per k (default 3)
-#' @param fst FST between admixing populations (default 0.11)
 #' @param sample_age_est Whether to estimate sample ages (default TRUE)
 #' @param plot Whether to create plots (default TRUE)
 #' @return Combined output dataframe
 #' @export
 admixplorer <- function(infile, outfile, method = "GLOBETROTTER",
-                               ks = "1,2,3,4", mcmc_chains = 3, fst = 0.11,
+                               ks = "1,2,3,4", mcmc_chains = 3,
                                sample_age_est = TRUE, plot = TRUE) {
 
   # Check required packages
   required_packages <- c("ggplot2", "dplyr", "stats")
   for (pkg in required_packages) {
     if (!requireNamespace(pkg, quietly = TRUE)) {
-      stop(paste("Package", pkg, "is required but not installed."))
+
     }
   }
 
@@ -32,7 +31,6 @@ admixplorer <- function(infile, outfile, method = "GLOBETROTTER",
   cat("Method:", method, "\n")
   cat("K values:", paste(ks_requested, collapse = ", "), "\n")
   cat("MCMC chains:", chains, "\n")
-  cat("FST:", fst, "\n")
   cat("Sample age estimation:", sample_age_est, "\n")
   cat("Create plots:", plot, "\n\n")
 
@@ -45,7 +43,6 @@ admixplorer <- function(infile, outfile, method = "GLOBETROTTER",
 
   # Calculate CV for scaling
   cv <- mean(filtered_data$data$V4 / filtered_data$data$V5)
-  if (cv < 1) { cv <- 5/cv }
 
   # Step 3: Run clustering analysis
   all_mcmc_results <- run_clustering_analysis(
@@ -63,13 +60,12 @@ admixplorer <- function(infile, outfile, method = "GLOBETROTTER",
     n_individuals = nrow(filtered_data$data)
   )
 
-  # Step 5: Apply threshold selection
-  threshold_results <- apply_threshold_selection(
-    improvements = likelihood_analysis,
-    method = method,
-    fst = fst,
-    cv = cv
-  )
+threshold_results <- apply_threshold_selection(
+  improvements = likelihood_analysis,
+  method = method,
+  cv = cv,
+  all_mcmc_results = all_mcmc_results  # ADD THIS LINE
+)
 
   # Step 6: Generate final output
   final_output <- generate_final_output(
@@ -81,12 +77,12 @@ admixplorer <- function(infile, outfile, method = "GLOBETROTTER",
     sample_age_est = sample_age_est,
     outfile = outfile,
     method = method,
-    fst = fst,
     thresholds_info = threshold_results
   )
 
   return(final_output)
 }
+
 
 #' Check and install required packages
 #'

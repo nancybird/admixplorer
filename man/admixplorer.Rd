@@ -2,7 +2,7 @@
 % Please edit documentation in R/wrapper.R
 \name{admixplorer}
 \alias{admixplorer}
-\title{Main wrapper function for admixcraft analysis}
+\title{Main wrapper function for admixplorer analysis}
 \usage{
 admixplorer(
   infile,
@@ -10,7 +10,6 @@ admixplorer(
   method = "GLOBETROTTER",
   ks = "1,2,3,4",
   mcmc_chains = 3,
-  fst = 0.11,
   sample_age_est = TRUE,
   plot = TRUE
 )
@@ -26,8 +25,6 @@ admixplorer(
 
 \item{mcmc_chains}{Number of MCMC chains per k (default 3)}
 
-\item{fst}{FST between admixing populations (default 0.11)}
-
 \item{sample_age_est}{Whether to estimate sample ages (default TRUE)}
 
 \item{plot}{Whether to create plots (default TRUE)}
@@ -36,5 +33,5 @@ admixplorer(
 Combined output dataframe
 }
 \description{
-Main wrapper function for admixcraft analysis
+Main wrapper function for admixplorer analysis
 }
