@@ -1,12 +1,9 @@
-#' Threshold configuration data
+#' Default likelihood & clustering thresholds
 #'
-#' A list containing threshold values for different methods (GLOBETROTTER and DATES)
-#' used in likelihood-based k selection.
-#'
-#' @format A list with 2 elements:
-#' \describe{
-#'   \item{GLOBETROTTER}{List of thresholds for GLOBETROTTER method}
-#'   \item{DATES}{List of thresholds for DATES method}
-#' }
-#' @keywords datasets
-"thresholds_config"
+#' Internal configuration list used by `apply_threshold_selection()`.
+#' @format
+#' A named list with elements \code{GLOBETROTTER} and \code{DATES}, each
+#' a list of numeric thresholds.
+#' @keywords internal
+#' @name thresholds_config
+NULL
