@@ -732,7 +732,8 @@ process_single_k <- function(k_current, prepared_data, chains, sample_age_est, p
       k = k_current,
       age_ranges = prepared_data$age.matrix,
       n_draws = 200,
-      verbose = TRUE
+      verbose = FALSE
+
     )
 
     cat(sprintf(

@@ -131,11 +131,28 @@ admixplorer <- function(infile, outfile, method = "GLOBETROTTER",
     plot = plot,
     outfile = outfile
   )
+  # NEW: Only stop if NO k values succeeded (not just some)
+  completed_ks <- names(all_mcmc_results)[!sapply(all_mcmc_results, is.null)]
+
+  if (length(completed_ks) == 0) {
+    # ALL k values failed - stop completely
+    warning(
+      "No feasible solutions found for any k values (",
+      paste(ks_requested, collapse = ", "),
+      "). Stopping analysis. Consider different k values or checking data quality."
+    )
+    return(invisible(NULL))
+  } else if (length(completed_ks) < length(ks_requested)) {
+    # Some k values failed, but at least one succeeded - continue with a warning
+    failed_ks <- setdiff(as.character(ks_requested), completed_ks)
+    cat("Warning: No feasible solutions for k =", paste(failed_ks, collapse = ", "),
+        ". Continuing with k =", paste(completed_ks, collapse = ", "), "\n")
+  }
 
   # Step 4: Calculate likelihood improvements
   likelihood_analysis <- calculate_likelihood_improvements(
     all_mcmc_results = all_mcmc_results,
-    n_individuals = nrow(filtered_data$data)
+    n_individuals = as.numeric(nrow(filtered_data$data))
   )
 
   # Step 5: Apply threshold selection
