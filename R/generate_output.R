@@ -60,18 +60,17 @@ generate_final_output <- function(all_mcmc_results, recommended_k, original_data
   # Combine and write output
   combined_output <- do.call(rbind, output_list)
 
-  # Enhanced summary header
   summary_header <- paste0(
-    "# LIKELIHOOD-BASED K SELECTION RESULTS (", toupper(method), ")\n",
+    "# CLUSTERING STRENGTH + LIKELIHOOD K SELECTION RESULTS (", toupper(method), ")\n",
     "# Recommended K: ", recommended_k, "\n",
     "# Method: ", method, "\n",
-    "# Scaled thresholds: k1 to k2(k=2):", round(thresholds_info$thresholds_used$k1_to_k2_for_k2, 3),
+    "# Clustering strength threshold: ", thresholds_info$thresholds_used$clustering_strength, "\n",
+    "# Likelihood thresholds: k1 to k2(k=2):", round(thresholds_info$thresholds_used$k1_to_k2_for_k2, 3),
     " k1 to k2(k=3):", round(thresholds_info$thresholds_used$k1_to_k2_for_k3, 3),
     " k2 to k3:", round(thresholds_info$thresholds_used$k2_to_k3, 3),
     " k3 to k4:", round(thresholds_info$thresholds_used$k3_to_k4, 3), "\n",
     "#\n"
   )
-
   # Write output with header
   output.outfile <- paste0(outfile, ".output.txt")
   cat(summary_header, file = output.outfile)

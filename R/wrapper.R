@@ -1,4 +1,6 @@
-#' Main wrapper function for admixplorer analysis
+# Fix: Move validation BEFORE filtering, or validate the raw data
+
+#' Main wrapper function for admixplorer analysis (FIXED VERSION)
 #'
 #' @param infile Path to input file
 #' @param outfile Output file prefix
@@ -10,22 +12,52 @@
 #' @return Combined output dataframe
 #' @export
 admixplorer <- function(infile, outfile, method = "GLOBETROTTER",
-                               ks = "1,2,3,4", mcmc_chains = 3,
-                               sample_age_est = TRUE, plot = TRUE) {
+                        ks = "1,2,3,4", mcmc_chains = 3,
+                        sample_age_est = TRUE, plot = TRUE) {
+
+  # INPUT VALIDATION
+
+  # Check file exists
+  if (!file.exists(infile)) {
+    stop("Input file '", infile, "' does not exist. Please check the file path.")
+  }
+
+  output_dir <- dirname(outfile)
+  if (output_dir != "." && !dir.exists(output_dir)) {
+    stop("Output directory '", output_dir, "' does not exist. Please create it first or use a valid path.")
+  }
+
+  # Test if output directory is writable
+  test_file <- file.path(output_dir, paste0("test_write_", Sys.getpid(), ".tmp"))
+  tryCatch({
+    writeLines("test", test_file)
+    unlink(test_file)
+  }, error = function(e) {
+    stop("Cannot write to output directory '", output_dir, "'. Please check permissions.")
+  })
+
+  # Parse and validate k values
+  ks_requested <- sort(unique(as.integer(unlist(strsplit(ks, ",")))))
+  if (any(ks_requested <= 0)) {
+    stop("All k values must be positive integers. Found invalid k values: ",
+         paste(ks_requested[ks_requested <= 0], collapse = ", "))
+  }
+
+  # Validate MCMC chains
+  chains <- as.numeric(mcmc_chains)
+  if (chains <= 0) {
+    stop("Number of MCMC chains must be a positive integer. Got: ", mcmc_chains)
+  }
 
   # Check required packages
   required_packages <- c("ggplot2", "dplyr", "stats")
   for (pkg in required_packages) {
     if (!requireNamespace(pkg, quietly = TRUE)) {
-
+      stop("Package '", pkg, "' is required but not installed. Please install it with: install.packages('", pkg, "')")
     }
   }
 
-  # Parse k values
-  ks_requested <- sort(unique(as.integer(unlist(strsplit(ks, ",")))))
-  chains <- as.numeric(mcmc_chains)
-
-  cat("=== ADMIXCRAFT ANALYSIS ===\n")
+  cat("=== ADMIXPLORER ANALYSIS ===\n")
   cat("Input file:", infile, "\n")
   cat("Output prefix:", outfile, "\n")
   cat("Method:", method, "\n")
@@ -34,15 +66,61 @@ admixplorer <- function(infile, outfile, method = "GLOBETROTTER",
   cat("Sample age estimation:", sample_age_est, "\n")
   cat("Create plots:", plot, "\n\n")
 
-  # Step 1: Read and filter data
+  # Step 1: Read RAW data first for validation
   print("READING IN DATA")
+  raw_data <- utils::read.table(infile, as.is = TRUE)
+
+  # VALIDATE RAW DATA BEFORE FILTERING
+  # Check for negative dates
+  if (any(raw_data$V4 <= 0)) {
+    negative_dates <- which(raw_data$V4 <= 0)
+    stop("Negative or zero admixture dates found in individuals: ",
+         paste(raw_data$V1[negative_dates], collapse = ", "),
+         ". All admixture dates must be positive.")
+  }
+
+  # Check for negative standard errors
+  if (any(raw_data$V5 <= 0)) {
+    negative_errors <- which(raw_data$V5 <= 0)
+    stop("Negative or zero standard errors found in individuals: ",
+         paste(raw_data$V1[negative_errors], collapse = ", "),
+         ". All standard errors must be positive.")
+  }
+
+  # Check for invalid age ranges (V3 < V2)
+  if (any(raw_data$V3 < raw_data$V2)) {
+    invalid_ages <- which(raw_data$V3 < raw_data$V2)
+    stop("Invalid age ranges found (max age < min age) in individuals: ",
+         paste(raw_data$V1[invalid_ages], collapse = ", "),
+         ". Maximum sampling age must be >= minimum sampling age.")
+  }
+
+  # Check for negative sampling ages
+  if (any(raw_data$V2 < 0) || any(raw_data$V3 < 0)) {
+    negative_sampling <- which(raw_data$V2 < 0 | raw_data$V3 < 0)
+    stop("Negative sampling ages found in individuals: ",
+         paste(raw_data$V1[negative_sampling], collapse = ", "),
+         ". All sampling ages must be non-negative.")
+  }
+
+  # Now do the filtering (after validation)
   filtered_data <- read_and_filter_data(infile)
+
+  # Check if any data remains after filtering
+  if (nrow(filtered_data$data) == 0) {
+    stop("No data remaining after filtering. All individuals were removed as outliers. ",
+         "Please check your data quality or filtering criteria.")
+  }
 
   # Step 2: Prepare data for clustering
   prepared_data <- prepare_clustering_data(filtered_data$data, sample_age_est)
 
   # Calculate CV for scaling
   cv <- mean(filtered_data$data$V4 / filtered_data$data$V5)
+  if (cv < 1) {
+    cv <- 5/cv  # Add penalty when CV < 1
+  }
+  cat("Coefficient of variation:", round(cv, 3), "\n")
 
   # Step 3: Run clustering analysis
   all_mcmc_results <- run_clustering_analysis(
@@ -60,12 +138,13 @@ admixplorer <- function(infile, outfile, method = "GLOBETROTTER",
     n_individuals = nrow(filtered_data$data)
   )
 
-threshold_results <- apply_threshold_selection(
-  improvements = likelihood_analysis,
-  method = method,
-  cv = cv,
-  all_mcmc_results = all_mcmc_results  # ADD THIS LINE
-)
+  # Step 5: Apply threshold selection
+  threshold_results <- apply_threshold_selection(
+    improvements = likelihood_analysis,
+    method = method,
+    cv = cv,
+    all_mcmc_results = all_mcmc_results
+  )
 
   # Step 6: Generate final output
   final_output <- generate_final_output(
@@ -81,16 +160,4 @@ threshold_results <- apply_threshold_selection(
   )
 
   return(final_output)
-}
-
-
-#' Check and install required packages
-#'
-#' @param pkg Package name
-#' @keywords internal
-check_install_packages <- function(pkg) {
-  if (!require(pkg, character.only = TRUE)) {
-    warning(paste("Package", pkg, "is not installed. Please install it before running"))
-    quit(status = 1)
-  }
 }
