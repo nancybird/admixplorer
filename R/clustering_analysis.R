@@ -47,53 +47,66 @@ apply_threshold_selection <- function(improvements, method, cv, all_mcmc_results
 
   recommended_k <- "1"  # Start with k=1
 
-  # NEW: Check clustering strength for k=2 first
-  clustering_strength_threshold <- 0.77
+  # Check clustering strength for k=2 first
+  clustering_strength_threshold <- base_thresholds$clustering_strength
 
   if ("2" %in% names(all_mcmc_results) && !is.null(all_mcmc_results[["2"]]$co_clustering_matrix)) {
     k2_strength <- clustering_strength(all_mcmc_results[["2"]]$co_clustering_matrix)
     cat(sprintf("\n=== CLUSTERING STRENGTH ANALYSIS ===\n"))
     cat(sprintf("K=2 clustering strength: %.3f\n", k2_strength))
     cat(sprintf("Clustering strength threshold: %.2f\n", clustering_strength_threshold))
+    cat(sprintf("CV: %.3f\n", cv))
+
+    # Check if we should use likelihood thresholds based on CV
+    if (cv < 1) {
+      cat("CV < 1: Using only clustering strength (ignoring likelihood thresholds)\n")
+      use_likelihood_thresholds <- FALSE
+    } else {
+      use_likelihood_thresholds <- TRUE
+    }
 
     if (k2_strength > clustering_strength_threshold) {
       recommended_k <- "2"
       cat(sprintf("K=2 clustering strength (%.3f) > threshold (%.2f): Consider k>=2\n",
                   k2_strength, clustering_strength_threshold))
 
-      # Now use likelihood thresholds for k>=2 decisions
-      cat(sprintf("\n=== LIKELIHOOD THRESHOLD ANALYSIS (k>=2) ===\n"))
+      # Only use likelihood thresholds for k>=2 decisions if CV >= 1
+      if (use_likelihood_thresholds) {
+        cat(sprintf("\n=== LIKELIHOOD THRESHOLD ANALYSIS (k>=2) ===\n"))
 
-      # Check k2 to k3
-      if ("k2_to_k3" %in% names(scaled_improvements)) {
-        if (scaled_improvements$k2_to_k3 > threshold_k2_to_k3) {
-          # For k=3, we need BOTH good k2→k3 AND the original k1→k2 was strong enough
-          if ("k1_to_k2" %in% names(scaled_improvements) &&
-              scaled_improvements$k1_to_k2 > threshold_k1_to_k2_for_k3) {
-            recommended_k <- "3"
-            cat(sprintf("k2 to k3 improvement (%.4f) > threshold (%.2f) AND k1 to k2 (%.4f) > k=3 threshold (%.2f): Consider k=3\n",
-                        scaled_improvements$k2_to_k3, threshold_k2_to_k3,
-                        scaled_improvements$k1_to_k2, threshold_k1_to_k2_for_k3))
+        # Check k2 to k3
+        if ("k2_to_k3" %in% names(scaled_improvements)) {
+          if (scaled_improvements$k2_to_k3 > threshold_k2_to_k3) {
+            # For k=3, we need BOTH good k2→k3 AND the original k1→k2 was strong enough
+            if ("k1_to_k2" %in% names(scaled_improvements) &&
+                scaled_improvements$k1_to_k2 > threshold_k1_to_k2_for_k3) {
+              recommended_k <- "3"
+              cat(sprintf("k2 to k3 improvement (%.4f) > threshold (%.2f) AND k1 to k2 (%.4f) > k=3 threshold (%.2f): Consider k=3\n",
+                          scaled_improvements$k2_to_k3, threshold_k2_to_k3,
+                          scaled_improvements$k1_to_k2, threshold_k1_to_k2_for_k3))
 
-            # Check k3 to k4
-            if ("k3_to_k4" %in% names(scaled_improvements)) {
-              if (scaled_improvements$k3_to_k4 > threshold_k3_to_k4) {
-                recommended_k <- "4+"  # 4+ because no higher thresholds defined
-                cat(sprintf("k3 to k4 improvement (%.4f) > threshold (%.2f): Consider k=4 or higher\n",
-                            scaled_improvements$k3_to_k4, threshold_k3_to_k4))
-              } else {
-                cat(sprintf("k3 to k4 improvement (%.4f) <= threshold (%.2f): Stop at k=3\n",
-                            scaled_improvements$k3_to_k4, threshold_k3_to_k4))
+              # Check k3 to k4
+              if ("k3_to_k4" %in% names(scaled_improvements)) {
+                if (scaled_improvements$k3_to_k4 > threshold_k3_to_k4) {
+                  recommended_k <- "4+"  # 4+ because no higher thresholds defined
+                  cat(sprintf("k3 to k4 improvement (%.4f) > threshold (%.2f): Consider k=4 or higher\n",
+                              scaled_improvements$k3_to_k4, threshold_k3_to_k4))
+                } else {
+                  cat(sprintf("k3 to k4 improvement (%.4f) <= threshold (%.2f): Stop at k=3\n",
+                              scaled_improvements$k3_to_k4, threshold_k3_to_k4))
+                }
               }
+            } else {
+              cat(sprintf("k2 to k3 improvement (%.4f) > threshold (%.2f) BUT k1 to k2 not strong enough for k=3: Stop at k=2\n",
+                          scaled_improvements$k2_to_k3, threshold_k2_to_k3))
             }
           } else {
-            cat(sprintf("k2 to k3 improvement (%.4f) > threshold (%.2f) BUT k1 to k2 not strong enough for k=3: Stop at k=2\n",
+            cat(sprintf("k2 to k3 improvement (%.4f) <= threshold (%.2f): Stop at k=2\n",
                         scaled_improvements$k2_to_k3, threshold_k2_to_k3))
           }
-        } else {
-          cat(sprintf("k2 to k3 improvement (%.4f) <= threshold (%.2f): Stop at k=2\n",
-                      scaled_improvements$k2_to_k3, threshold_k2_to_k3))
         }
+      } else {
+        cat("Skipping likelihood thresholds due to low CV (< 1): Stopping at k=2\n")
       }
     } else {
       cat(sprintf("K=2 clustering strength (%.3f) <= threshold (%.2f): Stop at k=1\n",
@@ -121,8 +134,6 @@ apply_threshold_selection <- function(improvements, method, cv, all_mcmc_results
     clustering_strength_k2 = if("2" %in% names(all_mcmc_results)) clustering_strength(all_mcmc_results[["2"]]$co_clustering_matrix) else NA
   )
 }
-
-
 
 calculate_likelihood_improvements <- function(all_mcmc_results, n_individuals) {
   completed_ks <- names(all_mcmc_results)[!sapply(all_mcmc_results, is.null)]

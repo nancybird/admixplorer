@@ -75,11 +75,17 @@ generate_final_output <- function(all_mcmc_results, recommended_k, original_data
   # Write output with header
   output.outfile <- paste0(outfile, ".output.txt")
   cat(summary_header, file = output.outfile)
-  utils::write.table(combined_output, output.outfile, row.names = FALSE, col.names = TRUE,
-                     quote = FALSE, append = TRUE)
+  suppressWarnings(
+    utils::write.table(combined_output, output.outfile,
+                       row.names = FALSE,
+                       col.names = TRUE,  # Keep column names
+                       quote = FALSE,
+                       append = TRUE,
+                       sep = "\t")  # Add explicit separator
+  )
 
   cat("Analysis complete. Results written to", output.outfile, "\n")
   cat("File includes recommended k =", recommended_k, "based on likelihood thresholds\n")
 
-  return(combined_output)
+  invisible(combined_output)
 }
