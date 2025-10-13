@@ -2,7 +2,7 @@
 % Please edit documentation in R/wrapper.R
 \name{admixplorer}
 \alias{admixplorer}
-\title{Main wrapper function for admixplorer analysis (FIXED VERSION)}
+\title{Main wrapper function for admixplorer analysis}
 \usage{
 admixplorer(
   infile,
@@ -33,5 +33,5 @@ admixplorer(
 Combined output dataframe
 }
 \description{
-Main wrapper function for admixplorer analysis (FIXED VERSION)
+Main wrapper function for admixplorer analysis
 }

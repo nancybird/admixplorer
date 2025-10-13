@@ -127,7 +127,10 @@ apply_threshold_selection <- function(improvements, method, cv, all_mcmc_results
   }
 
   cat(sprintf("\n*** RECOMMENDED K: %s ***\n", recommended_k))
-
+  k_num <- as.numeric(recommended_k)
+  if (!is.na(k_num) && k_num >= 4) {
+    recommended_k <- "4+"
+  }
   list(
     recommended_k = recommended_k,
     thresholds_used = base_thresholds,

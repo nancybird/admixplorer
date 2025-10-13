@@ -1,6 +1,4 @@
-# Fix: Move validation BEFORE filtering, or validate the raw data
-
-#' Main wrapper function for admixplorer analysis (FIXED VERSION)
+#' Main wrapper function for admixplorer analysis
 #'
 #' @param infile Path to input file
 #' @param outfile Output file prefix
@@ -70,7 +68,6 @@ admixplorer <- function(infile, outfile, method = "GLOBETROTTER",
   print("READING IN DATA")
   raw_data <- utils::read.table(infile, as.is = TRUE)
 
-  # VALIDATE RAW DATA BEFORE FILTERING
   # Check for negative dates
   if (any(raw_data$V4 <= 0)) {
     negative_dates <- which(raw_data$V4 <= 0)
@@ -103,7 +100,6 @@ admixplorer <- function(infile, outfile, method = "GLOBETROTTER",
          ". All sampling ages must be non-negative.")
   }
 
-  # Now do the filtering (after validation)
   filtered_data <- read_and_filter_data(infile)
 
   # Check if any data remains after filtering
@@ -117,9 +113,6 @@ admixplorer <- function(infile, outfile, method = "GLOBETROTTER",
 
   # Calculate CV for scaling
   cv <- mean(filtered_data$data$V4 / filtered_data$data$V5)
-  if (cv < 1) {
-    cv <- 5/cv  # Add penalty when CV < 1
-  }
   cat("Coefficient of variation:", round(cv, 3), "\n")
 
   # Step 3: Run clustering analysis
@@ -131,7 +124,7 @@ admixplorer <- function(infile, outfile, method = "GLOBETROTTER",
     plot = plot,
     outfile = outfile
   )
-  # NEW: Only stop if NO k values succeeded (not just some)
+
   completed_ks <- names(all_mcmc_results)[!sapply(all_mcmc_results, is.null)]
 
   if (length(completed_ks) == 0) {
