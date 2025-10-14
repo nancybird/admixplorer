@@ -20,20 +20,67 @@ clustering_strength <- function(coincidence_matrix) {
 #' @return Recommended k value
 #' @export
 apply_threshold_selection <- function(improvements, method, cv, all_mcmc_results) {
-  cat("\n>>> FINAL ANALYSIS WITH LIKELIHOOD THRESHOLDS <<<\n")
+    cat("\n>>> FINAL ANALYSIS WITH LIKELIHOOD THRESHOLDS <<<\n")
 
-  # Get base thresholds for the method
-  if (method %in% names(thresholds_config)) {
-    base_thresholds <- thresholds_config[[method]]
-    cat(sprintf("\n=== THRESHOLD-BASED K SELECTION (%s) ===\n", method))
-  } else {
-    base_thresholds <- thresholds_config[["GLOBETROTTER"]]  # Default
-    cat(sprintf("\n=== THRESHOLD-BASED K SELECTION (DEFAULT - GLOBETROTTER) ===\n"))
-    cat("Warning: Unknown method '", method, "', using GLOBETROTTER thresholds\n")
-  }
+    # Get base thresholds for the method
+    if (method %in% names(thresholds_config)) {
+      base_thresholds <- thresholds_config[[method]]
+      cat(sprintf("\n=== THRESHOLD-BASED K SELECTION (%s) ===\n", method))
+    } else {
+      base_thresholds <- thresholds_config[["GLOBETROTTER"]]
+      cat(sprintf("\n=== THRESHOLD-BASED K SELECTION (DEFAULT - GLOBETROTTER) ===\n"))
+      cat("Warning: Unknown method '", method, "', using GLOBETROTTER thresholds\n")
+    }
 
-  # Apply CV scaling to improvements
-  scaled_improvements <- lapply(improvements$improvements, function(x) x / cv)
+    # Apply CV scaling to improvements
+    scaled_improvements <- lapply(improvements$improvements, function(x) x / cv)
+
+    # Get completed k values
+    completed_ks <- improvements$completed_ks
+
+    # NEW: Handle missing k=1 case - recommend minimum feasible k
+    if (!"1" %in% completed_ks) {
+      # Add a check before calling min():
+      if (length(completed_ks) == 0) {
+        stop("No feasible solutions found for any k values.")
+      }
+      min_feasible_k <- min(as.numeric(completed_ks))
+
+      cat(sprintf("No feasible solutions for k=1. Minimum feasible k: %g\n", min_feasible_k))
+
+      # If minimum feasible k is 2, check clustering strength
+      if ("2" %in% completed_ks && !is.null(all_mcmc_results[["2"]]$co_clustering_matrix)) {
+        k2_strength <- clustering_strength(all_mcmc_results[["2"]]$co_clustering_matrix)
+        clustering_strength_threshold <- base_thresholds$clustering_strength
+
+        cat(sprintf("\n=== CLUSTERING STRENGTH ANALYSIS ===\n"))
+        cat(sprintf("K=2 clustering strength: %.3f\n", k2_strength))
+        cat(sprintf("Clustering strength threshold: %.2f\n", clustering_strength_threshold))
+
+        if (k2_strength > clustering_strength_threshold) {
+          recommended_k <- "2"
+          cat(sprintf("K=2 clustering strength (%.3f) > threshold (%.2f): Recommend k=2\n",
+                      k2_strength, clustering_strength_threshold))
+        } else {
+          recommended_k <- "2"  # Still recommend 2 since it's the minimum feasible
+          cat(sprintf("K=2 clustering strength (%.3f) <= threshold (%.2f), but k=2 is minimum feasible: Recommend k=2\n",
+                      k2_strength, clustering_strength_threshold))
+        }
+      } else {
+        # Default to minimum feasible k
+        recommended_k <- as.character(min_feasible_k)
+        cat(sprintf("Recommending minimum feasible k=%s\n", recommended_k))
+      }
+
+      cat(sprintf("\n*** RECOMMENDED K: %s ***\n", recommended_k))
+
+      return(list(
+        recommended_k = recommended_k,
+        thresholds_used = base_thresholds,
+        clustering_strength_k2 = if("2" %in% completed_ks) clustering_strength(all_mcmc_results[["2"]]$co_clustering_matrix) else NA
+      ))
+    }
+
 
   threshold_k1_to_k2_for_k2 <- base_thresholds$k1_to_k2_for_k2
   threshold_k1_to_k2_for_k3 <- base_thresholds$k1_to_k2_for_k3
@@ -165,6 +212,13 @@ calculate_likelihood_improvements <- function(all_mcmc_results, n_individuals) {
 
     cat(sprintf("Improvement k%s to k%s: %.4f\n", k_current, k_next, improvement))
   }
+  # In calculate_likelihood_improvements()
+  if (!"1" %in% names(all_mcmc_results)) {
+    # Can't calculate k1_to_k2 improvement without k=1
+    improvements$k1_to_k2 <- NA
+    cat("Warning: k=1 results missing, cannot calculate k1_to_k2 improvement\n")
+  }
+
 
   list(
     completed_ks = completed_ks,
