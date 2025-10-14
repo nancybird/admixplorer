@@ -11,7 +11,7 @@ create_test_data_1cluster <- function() {
     V2 = rep(0, 10),           # Min age (modern samples)
     V3 = rep(0, 10),           # Max age (modern samples)
     V4 = rnorm(10, 45, 2),     # Admixture dates around 45 generations
-    V5 = rnorm(10, 9, 0.5),    # Standard errors around 3
+    V5 = rnorm(10, 10, 0.2),    # Standard errors around 3
     stringsAsFactors = FALSE
   )
 }
