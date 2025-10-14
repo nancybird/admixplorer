@@ -13,7 +13,7 @@ install.packages("devtools")
 devtools::install_github("nancybird/admixplorer")
 ```
 ## Usage
-
+```
 admixplorer(
 
   infile,
@@ -30,7 +30,7 @@ admixplorer(
  
   plot = TRUE
 )
-
+```
 # Arguments
 
 infile:	Path to input file (file with 5 columns: ind, sampling_age_lower, sampling_age_upper, inferred_admixture_date, inferred_admixture_sd). no header
