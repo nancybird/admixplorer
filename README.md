@@ -46,3 +46,8 @@ mcmc_chains:	Number of MCMC chains per k (default 3, use only 1 for faster runni
 sample_age_est:	Whether to estimate sample ages for ancient individuals (default TRUE, if FALSE will use the midpoint of the range)
 
 plot:	Whether to create plots (default TRUE, creates plots of coindence matrix and cluster means to inform on cluster numbers)
+
+
+  <!-- badges: start -->
+  [![R-CMD-check](https://github.com/nancybird/admixplorer/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/nancybird/admixplorer/actions/workflows/R-CMD-check.yaml)
+  <!-- badges: end -->
