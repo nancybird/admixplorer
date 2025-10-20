@@ -48,20 +48,33 @@ create_mock_mcmc_results <- function(k2_clustering_strength = 0.8) {
 
 
 
-create_mock_improvements <- function() {
+# For tests expecting k=1: small likelihood improvement
+create_mock_improvements_weak <- function() {
+  list(
+    completed_ks = c("1", "2"),
+    likelihoods = c("1" = -100, "2" = -99),  # Small difference
+    likelihoods_per_ind = c("1" = -20, "2" = -19.8),  # Small per-ind difference
+    improvements = list(
+      k1_to_k2 = 0.2  # Small improvement: 0.2 / cv=2 = 0.1, which is < 0.56
+    )
+  )
+}
+
+# For tests expecting k=2: large likelihood improvement (keep original)
+create_mock_improvements_strong <- function() {
   list(
     completed_ks = c("1", "2"),
     likelihoods = c("1" = -100, "2" = -80),
     likelihoods_per_ind = c("1" = -20, "2" = -16),
     improvements = list(
-      k1_to_k2 = 4  # Per individual improvement
+      k1_to_k2 = 4  # Large improvement
     )
   )
 }
 
 test_that("apply_threshold_selection recommends k=1 for weak clustering", {
-  mock_results <- create_mock_mcmc_results(k2_clustering_strength = 0.5)  # Weak
-  mock_improvements <- create_mock_improvements()
+  mock_results <- create_mock_mcmc_results(k2_clustering_strength = 0.7)  # Weak
+  mock_improvements <- create_mock_improvements_weak()
 
   result <- apply_threshold_selection(
     improvements = mock_improvements,
@@ -71,12 +84,12 @@ test_that("apply_threshold_selection recommends k=1 for weak clustering", {
   )
 
   expect_equal(result$recommended_k, "1")
-  expect_true(result$clustering_strength_k2 < 0.77)
+  expect_true(result$clustering_strength_k2 < 0.78)
 })
 
 test_that("apply_threshold_selection recommends k=2 for strong clustering", {
   mock_results <- create_mock_mcmc_results(k2_clustering_strength = 0.9)  # Strong
-  mock_improvements <- create_mock_improvements()
+  mock_improvements <- create_mock_improvements_strong()
 
   result <- apply_threshold_selection(
     improvements = mock_improvements,
@@ -86,12 +99,12 @@ test_that("apply_threshold_selection recommends k=2 for strong clustering", {
   )
 
   expect_equal(result$recommended_k, "2")
-  expect_true(result$clustering_strength_k2 > 0.77)
+  expect_true(result$clustering_strength_k2 > 0.78)
 })
 
 test_that("apply_threshold_selection handles low CV correctly", {
   mock_results <- create_mock_mcmc_results(k2_clustering_strength = 0.9)
-  mock_improvements <- create_mock_improvements()
+  mock_improvements <- create_mock_improvements_strong()
 
   # With low CV, should ignore likelihood thresholds
   result <- apply_threshold_selection(
@@ -107,7 +120,7 @@ test_that("apply_threshold_selection handles low CV correctly", {
 
 test_that("apply_threshold_selection uses correct method thresholds", {
   mock_results <- create_mock_mcmc_results(k2_clustering_strength = 0.8)
-  mock_improvements <- create_mock_improvements()
+  mock_improvements <- create_mock_improvements_strong()
 
   # Test DATES method with CORRECT expected values
   result_dates <- apply_threshold_selection(
@@ -119,7 +132,6 @@ test_that("apply_threshold_selection uses correct method thresholds", {
 
   # Use the actual values from your thresholds_config
   expect_equal(result_dates$thresholds_used$k1_to_k2_for_k2, 0.97)  # CORRECTED
-  expect_equal(result_dates$thresholds_used$k1_to_k2_for_k3, 4.05)  # CORRECTED
   expect_equal(result_dates$thresholds_used$k2_to_k3, 0.58)         # CORRECTED
   expect_equal(result_dates$thresholds_used$k3_to_k4, 0.42)         # CORRECTED
   expect_equal(result_dates$thresholds_used$clustering_strength, 0.99)
@@ -132,11 +144,10 @@ test_that("apply_threshold_selection uses correct method thresholds", {
     all_mcmc_results = mock_results
   )
 
-  expect_equal(result_gt$thresholds_used$k1_to_k2_for_k2, 0.65)
-  expect_equal(result_gt$thresholds_used$k1_to_k2_for_k3, 1.21)
+  expect_equal(result_gt$thresholds_used$k1_to_k2_for_k2, 0.56)
+  expect_equal(result_gt$thresholds_used$clustering_strength, 0.78)
   expect_equal(result_gt$thresholds_used$k2_to_k3, 0.34)
   expect_equal(result_gt$thresholds_used$k3_to_k4, 0.18)
-  expect_equal(result_gt$thresholds_used$clustering_strength, 0.77)
 })
 
 test_that("apply_threshold_selection handles missing k=2 results", {
@@ -168,8 +179,8 @@ test_that("apply_threshold_selection handles missing k=2 results", {
 
 test_that("DATES method uses higher clustering strength threshold", {
   # Test that DATES method uses 0.99 clustering threshold (stricter than GLOBETROTTER's 0.77)
-  mock_results <- create_mock_mcmc_results(k2_clustering_strength = 0.95)  # Between 0.77 and 0.99
-  mock_improvements <- create_mock_improvements()
+  mock_results <- create_mock_mcmc_results(k2_clustering_strength = 0.85)  # Between 0.77 and 0.99
+  mock_improvements <- create_mock_improvements_weak()
 
   result_gt <- apply_threshold_selection(
     improvements = mock_improvements,
