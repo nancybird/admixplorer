@@ -92,7 +92,7 @@ apply_threshold_selection <- function(improvements, method, cv, all_mcmc_results
 
   # 6. Normal workflow when k=1 exists
   cat(sprintf("Method: %s\n", method))
-  cat(sprintf("Likelihood thresholds: 1→2=%.2f, 2→3=%.2f, 3→4=%.2f\n",
+  cat(sprintf("Likelihood thresholds: 1->2=%.2f, 2->3=%.2f, 3->4=%.2f\n",
               threshold_k1_k2_for_k2, threshold_k2_k3, threshold_k3_k4))
   recommended_k <- "1"
 
@@ -110,42 +110,42 @@ apply_threshold_selection <- function(improvements, method, cv, all_mcmc_results
     if (!use_likelihood) {
       if (k2_str > clustering_strength_threshold) {
         recommended_k <- "2"
-        cat("CV < cutoff: using clustering strength only → k=2\n")
+        cat("CV < cutoff: using clustering strength only -> k=2\n")
       } else {
-        cat("CV < cutoff and strength ≤ threshold → stay at k=1\n")
+        cat("CV < cutoff and strength less than or equal to threshold -> stay at k=1\n")
       }
     } else {
       if (k2_str > clustering_strength_threshold ||
           check_improvement("k1_to_k2", threshold_k1_k2_for_k2)) {
         recommended_k <- "2"
-        cat("CV ≥ cutoff: strength or k1→2 meets threshold → k=2\n")
+        cat("CV greater than or equal to cutoff: strength or k1->2 meets threshold -> k=2\n")
       } else {
-        cat("CV ≥ cutoff and neither criterion met → stay at k=1\n")
+        cat("CV greater than or equal to cutoff and neither criterion met -> stay at k=1\n")
       }
     }
 
-    # 8. Cascade to k≥3 if k=2 selected
+    # 8. Cascade to k greater than or equal to 3 if k=2 selected
     if (recommended_k == "2" && use_likelihood) {
       cat("\n=== LIKELIHOOD THRESHOLD CASCADE ===\n")
       if (check_improvement("k2_to_k3", threshold_k2_k3) &&
           check_improvement("k1_to_k2", threshold_k1_k2_for_k3)) {
         recommended_k <- "3"
-        cat("k2→3 improvement passes → k=3\n")
+        cat("k2->3 improvement passes -> k=3\n")
         if (check_improvement("k3_to_k4", threshold_k3_k4)) {
           recommended_k <- "4+"
-          cat("k3→4 improvement passes → k=4+\n")
+          cat("k3->4 improvement passes -> k=4+\n")
         } else {
-          cat("k3→4 improvement fails → stop at k=3\n")
+          cat("k3->4 improvement fails -> stop at k=3\n")
         }
       } else {
-        cat("k2→3 improvement fails → stop at k=2\n")
+        cat("k2->3 improvement fails -> stop at k=2\n")
       }
     }
   } else {
     warning("No k=2 co-clustering matrix; falling back to likelihood only")
     if (check_improvement("k1_to_k2", threshold_k1_k2_for_k2)) {
       recommended_k <- "2"
-      cat("Likelihood-only test passes → k=2\n")
+      cat("Likelihood-only test passes -> k=2\n")
     }
   }
 
