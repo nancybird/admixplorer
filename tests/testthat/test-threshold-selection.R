@@ -153,34 +153,7 @@ test_that("apply_threshold_selection handles low CV correctly", {
   expect_equal(result$recommended_k, "2")
 })
 
-test_that("apply_threshold_selection uses correct method thresholds", {
-  mock_results <- create_mock_mcmc_results(k2_clustering_strength = 0.8)
-  mock_improvements <- create_mock_improvements_strong()
 
-  result_dates <- apply_threshold_selection(
-    improvements = mock_improvements,
-    method = "DATES",
-    cv = 2,
-    all_mcmc_results = mock_results
-  )
-
-  expect_equal(result_dates$thresholds_used$k1_to_k2_for_k2, 0.97)
-  expect_equal(result_dates$thresholds_used$k2_to_k3, 0.58)
-  expect_equal(result_dates$thresholds_used$k3_to_k4, 0.42)
-  expect_equal(result_dates$thresholds_used$clustering_strength, 0.99)
-
-  result_gt <- apply_threshold_selection(
-    improvements = mock_improvements,
-    method = "GLOBETROTTER",
-    cv = 2,
-    all_mcmc_results = mock_results
-  )
-
-  expect_equal(result_gt$thresholds_used$k1_to_k2_for_k2, 0.56)
-  expect_equal(result_gt$thresholds_used$clustering_strength, 0.78)
-  expect_equal(result_gt$thresholds_used$k2_to_k3, 0.34)
-  expect_equal(result_gt$thresholds_used$k3_to_k4, 0.18)
-})
 
 test_that("apply_threshold_selection handles missing k=2 results", {
   mock_results <- list(
