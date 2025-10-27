@@ -58,7 +58,7 @@ apply_threshold_selection <- function(improvements, method, cv, all_mcmc_results
   # Helper to print the comparison for a given likelihood jump
   print_lik_comparison <- function(name, threshold) {
     val <- scaled_improvements[[name]]
-    if (is.null(val)) {
+    if (is.null(val) || is.na(val)) {
       status <- "FAIL"
       val_print <- NA_real_
     } else {
