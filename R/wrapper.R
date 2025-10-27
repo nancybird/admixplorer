@@ -169,5 +169,5 @@ admixplorer <- function(infile, outfile, method = "GLOBETROTTER",
     thresholds_info = threshold_results
   )
 
-  return(final_output)
+  return(invisible(final_output))
 }
