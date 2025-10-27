@@ -54,7 +54,6 @@ apply_threshold_selection <- function(improvements, method, cv, all_mcmc_results
     }
   }
 
-
   # Helper to print the comparison for a given likelihood jump
   print_lik_comparison <- function(name, threshold) {
     val <- scaled_improvements[[name]]
@@ -98,17 +97,17 @@ apply_threshold_selection <- function(improvements, method, cv, all_mcmc_results
       if (check_improvement("k2_to_k3", threshold_k2_k3) &&
           check_improvement("k1_to_k2", threshold_k1_k2_for_k3)) {
         recommended_k <- "3"
-        cat("→ Both criteria pass: selecting k=3\n")
+        cat("=> Both criteria pass: selecting k=3\n")
 
         print_lik_comparison("k3_to_k4", threshold_k3_k4)
         if (check_improvement("k3_to_k4", threshold_k3_k4)) {
           recommended_k <- "4+"
-          cat("→ k3->k4 passes: selecting k=4+\n")
+          cat("=> k3->k4 passes: selecting k=4+\n")
         } else {
-          cat("→ k3->k4 fails: stopping at k=3\n")
+          cat("=> k3->k4 fails: stopping at k=3\n")
         }
       } else {
-        cat("→ Criteria not met: stopping at k=2\n")
+        cat("=> Criteria not met: stopping at k=2\n")
       }
     }
 
@@ -139,9 +138,9 @@ apply_threshold_selection <- function(improvements, method, cv, all_mcmc_results
       # Low CV: use clustering strength only
       if (k2_str > clustering_strength_threshold) {
         recommended_k <- "2"
-        cat("→ CV < cutoff: using clustering strength only → k=2\n")
+        cat("=> CV < cutoff: using clustering strength only => k=2\n")
       } else {
-        cat("→ CV < cutoff: clustering strength fails → stay at k=1\n")
+        cat("=> CV < cutoff: clustering strength fails => stay at k=1\n")
       }
     } else {
       # High CV: use clustering strength OR likelihood
@@ -151,9 +150,9 @@ apply_threshold_selection <- function(improvements, method, cv, all_mcmc_results
       if (k2_str > clustering_strength_threshold ||
           check_improvement("k1_to_k2", threshold_k1_k2_for_k2)) {
         recommended_k <- "2"
-        cat("→ Clustering strength or k1->k2 passes → k=2\n")
+        cat("=> Clustering strength or k1->k2 passes => k=2\n")
       } else {
-        cat("→ Neither criterion met → stay at k=1\n")
+        cat("=> Neither criterion met => stay at k=1\n")
       }
     }
 
@@ -166,17 +165,17 @@ apply_threshold_selection <- function(improvements, method, cv, all_mcmc_results
       if (check_improvement("k2_to_k3", threshold_k2_k3) &&
           check_improvement("k1_to_k2", threshold_k1_k2_for_k3)) {
         recommended_k <- "3"
-        cat("→ Both k2->k3 and k1->k2 (for k3) pass → k=3\n")
+        cat("=> Both k2->k3 and k1->k2 (for k3) pass => k=3\n")
 
         print_lik_comparison("k3_to_k4", threshold_k3_k4)
         if (check_improvement("k3_to_k4", threshold_k3_k4)) {
           recommended_k <- "4+"
-          cat("→ k3->k4 passes → k=4+\n")
+          cat("=> k3->k4 passes => k=4+\n")
         } else {
-          cat("→ k3->k4 fails → stop at k=3\n")
+          cat("=> k3->k4 fails => stop at k=3\n")
         }
       } else {
-        cat("→ k2->k3 criteria not met → stop at k=2\n")
+        cat("=> k2->k3 criteria not met => stop at k=2\n")
       }
     }
   } else {
@@ -184,7 +183,7 @@ apply_threshold_selection <- function(improvements, method, cv, all_mcmc_results
     print_lik_comparison("k1_to_k2", threshold_k1_k2_for_k2)
     if (check_improvement("k1_to_k2", threshold_k1_k2_for_k2)) {
       recommended_k <- "2"
-      cat("→ Likelihood test passes → k=2\n")
+      cat("=> Likelihood test passes => k=2\n")
     }
   }
 
@@ -204,50 +203,6 @@ apply_threshold_selection <- function(improvements, method, cv, all_mcmc_results
       pass_k3_to_k4    = check_improvement("k3_to_k4", threshold_k3_k4)
     )
   ))
-}
-
-
-calculate_likelihood_improvements <- function(all_mcmc_results, n_individuals) {
-  completed_ks <- names(all_mcmc_results)[!sapply(all_mcmc_results, is.null)]
-
-  likelihoods <- sapply(completed_ks, function(k) {
-    all_mcmc_results[[k]]$result$final_log_likelihood_best_sampling_ages[1]
-  })
-
-  likelihoods_per_ind <- likelihoods / n_individuals
-
-  # Print likelihoods
-  for (k in completed_ks) {
-    cat(sprintf("Likelihood k=%s: %.2f \n", k, likelihoods[k]))
-  }
-
-  # Calculate improvements between consecutive k values
-  improvements <- list()
-  completed_ks_num <- sort(as.numeric(completed_ks))
-
-  for (i in 1:(length(completed_ks_num)-1)) {
-    k_current <- as.character(completed_ks_num[i])
-    k_next <- as.character(completed_ks_num[i+1])
-
-    improvement <- likelihoods_per_ind[k_next] - likelihoods_per_ind[k_current]
-    improvements[[paste0("k", k_current, "_to_k", k_next)]] <- improvement
-
-    cat(sprintf("Improvement k%s to k%s: %.4f\n", k_current, k_next, improvement))
-  }
-  # In calculate_likelihood_improvements()
-  if (!"1" %in% names(all_mcmc_results)) {
-    # Can't calculate k1_to_k2 improvement without k=1
-    improvements$k1_to_k2 <- NA
-    cat("Warning: k=1 results missing, cannot calculate k1_to_k2 improvement\n")
-  }
-
-
-  list(
-    completed_ks = completed_ks,
-    likelihoods = likelihoods,
-    likelihoods_per_ind = likelihoods_per_ind,
-    improvements = improvements
-  )
 }
 
 
