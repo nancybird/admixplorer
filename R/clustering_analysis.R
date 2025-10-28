@@ -120,7 +120,7 @@ apply_threshold_selection <- function(improvements, method, cv, all_mcmc_results
   }
 
   # 6. Normal workflow when k=1 exists
-  cat(sprintf("CV: %.3f (cutoff %.3f)\n", cv, cv_cutoff))
+  cat(sprintf("Z-score: %.3f (cutoff %.3f)\n", cv, cv_cutoff))
   recommended_k <- "1"
 
   # 7. K=2 clustering strength check
@@ -138,9 +138,9 @@ apply_threshold_selection <- function(improvements, method, cv, all_mcmc_results
       # Low CV: use clustering strength only
       if (k2_str > clustering_strength_threshold) {
         recommended_k <- "2"
-        cat("=> CV < cutoff: using clustering strength only => k=2\n")
+        cat("=> Z-score < cutoff: using clustering strength only => k=2\n")
       } else {
-        cat("=> CV < cutoff: clustering strength fails => stay at k=1\n")
+        cat("=> Z-score < cutoff: clustering strength fails => stay at k=1\n")
       }
     } else {
       # High CV: use clustering strength OR likelihood
