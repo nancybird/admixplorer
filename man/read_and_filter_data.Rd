@@ -4,12 +4,16 @@
 \alias{read_and_filter_data}
 \title{Read and filter admixture data}
 \usage{
-read_and_filter_data(filename)
+read_and_filter_data(filename, apply_date_filter = TRUE)
 }
 \arguments{
 \item{filename}{Path to input file}
+
+\item{apply_date_filter}{Logical, whether to apply date-based outlier filters (default TRUE)}
 }
 \value{
+List containing filtered dataframe and original individuals
+
 List containing filtered dataframe and original individuals
 }
 \description{

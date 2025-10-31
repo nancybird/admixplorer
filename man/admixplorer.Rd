@@ -11,7 +11,8 @@ admixplorer(
   ks = "1,2,3,4",
   mcmc_chains = 3,
   sample_age_est = TRUE,
-  plot = TRUE
+  plot = TRUE,
+  apply_date_filter = TRUE
 )
 }
 \arguments{
