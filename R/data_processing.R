@@ -14,7 +14,7 @@ read_and_filter_data <- function(filename) {
   # Apply filters
   file.read <- file.read[file.read$V4 > 2, ]
   file.read <- file.read[file.read$V5 < file.read$V4 * 10, ]
-  file.read <- file.read[file.read$V4 < 150, ]
+  #file.read <- file.read[file.read$V4 < 150, ]
 
   # Find which individuals were removed
   remaining_inds <- file.read$V1
