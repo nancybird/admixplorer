@@ -99,6 +99,10 @@ apply_threshold_selection <- function(improvements, method, cv, all_mcmc_results
       if ("2" %in% completed_ks && "3" %in% completed_ks) {
         print_lik_comparison("k2_to_k3", threshold_k2_k3)
 
+        # Only check k1->k2 threshold if k=1 actually exists
+        # Since k=1 is missing, skip the k1_to_k2_for_k3 check
+        cat("  k1_to_k2 check skipped (k=1 does not exist)\n")
+
         if (check_improvement("k2_to_k3", threshold_k2_k3)) {
           recommended_k <- "3"
           cat("=> k2->k3 passes: selecting k=3\n")
@@ -132,13 +136,24 @@ apply_threshold_selection <- function(improvements, method, cv, all_mcmc_results
         cat(sprintf("=> Insufficient k values for cascade; using minimum feasible k=%s\n",
                     recommended_k))
       }
+    } else {
+      # Low CV case when k=1 is missing
+      cat("\n=> Z-score < cutoff: using minimum feasible k\n")
+      if ("2" %in% completed_ks && exists("k2_str") && !is.na(k2_str)) {
+        if (k2_str > clustering_strength_threshold) {
+          recommended_k <- "2"
+          cat("=> Clustering strength passes: selecting k=2\n")
+        } else {
+          cat("=> Clustering strength fails: staying at minimum k\n")
+        }
+      }
     }
 
     cat(sprintf("\n*** RECOMMENDED K: %s ***\n", recommended_k))
     return(list(
       recommended_k          = recommended_k,
       thresholds_used        = base_thresholds,
-      clustering_strength_k2 = k2_str
+      clustering_strength_k2 = if (exists("k2_str")) k2_str else NA
     ))
   }
 
@@ -227,7 +242,6 @@ apply_threshold_selection <- function(improvements, method, cv, all_mcmc_results
     )
   ))
 }
-
 calculate_likelihood_improvements <- function(all_mcmc_results, n_individuals) {
   completed_ks <- names(all_mcmc_results)[!sapply(all_mcmc_results, is.null)]
 
