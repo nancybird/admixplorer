@@ -6,15 +6,29 @@
 #' @importFrom utils read.table
 #' @importFrom dplyr filter
 
-read_and_filter_data <- function(filename) {
+#' Read and filter admixture data
+#'
+#' @param filename Path to input file
+#' @param apply_date_filter Logical, whether to apply date-based outlier filters (default TRUE)
+#' @return List containing filtered dataframe and original individuals
+#' @export
+#' @importFrom utils read.table
+#' @importFrom dplyr filter
+
+read_and_filter_data <- function(filename, apply_date_filter = TRUE) {
   # Read the file
   file.read <- utils::read.table(filename, as.is = TRUE)
   original_inds <- file.read$V1
 
   # Apply filters
-  file.read <- file.read[file.read$V4 > 2, ]
-  file.read <- file.read[file.read$V5 < file.read$V4 * 10, ]
-  #file.read <- file.read[file.read$V4 < 150, ]
+  if (apply_date_filter) {
+    cat("Applying date-based outlier filters...\n")
+    file.read <- file.read[file.read$V4 > 2, ]
+    file.read <- file.read[file.read$V5 < file.read$V4 * 10, ]
+    file.read <- file.read[file.read$V4 < 200, ]
+  } else {
+    cat("Skipping date-based outlier filters (apply_date_filter = FALSE)\n")
+  }
 
   # Find which individuals were removed
   remaining_inds <- file.read$V1

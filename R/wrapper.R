@@ -11,7 +11,8 @@
 #' @export
 admixplorer <- function(infile, outfile, method = "GLOBETROTTER",
                         ks = "1,2,3,4", mcmc_chains = 3,
-                        sample_age_est = TRUE, plot = TRUE) {
+                        sample_age_est = TRUE, plot = TRUE,
+                        apply_date_filter = TRUE) {
 
   # INPUT VALIDATION
 
@@ -63,7 +64,7 @@ admixplorer <- function(infile, outfile, method = "GLOBETROTTER",
   cat("MCMC chains:", chains, "\n")
   cat("Sample age estimation:", sample_age_est, "\n")
   cat("Create plots:", plot, "\n\n")
-
+  cat("Apply date filters:", apply_date_filter, "\n\n")
   # Step 1: Read RAW data first for validation
   print("READING IN DATA")
   raw_data <- utils::read.table(infile, as.is = TRUE)
@@ -100,7 +101,7 @@ admixplorer <- function(infile, outfile, method = "GLOBETROTTER",
          ". All sampling ages must be non-negative.")
   }
 
-  filtered_data <- read_and_filter_data(infile)
+  filtered_data <- read_and_filter_data(infile, apply_date_filter = apply_date_filter)
 
   # Check if any data remains after filtering
   if (nrow(filtered_data$data) == 0) {
