@@ -28,7 +28,9 @@ admixplorer(
  
   sample_age_est = TRUE,
  
-  plot = TRUE
+  plot = TRUE,
+
+ apply_date_filter=TRUE
 )
 ```
 # Arguments
@@ -46,6 +48,8 @@ mcmc_chains:	Number of MCMC chains per k (default 3, use only 1 for faster runni
 sample_age_est:	Whether to estimate sample ages for ancient individuals (default TRUE, if FALSE will use the midpoint of the range)
 
 plot:	Whether to create plots (default TRUE, creates plots of coindence matrix and cluster means to inform on cluster numbers)
+
+apply_date_filter: whether to filter out admixture dates <2 and >200 (use for GT and DATES but not for special analyses of very old admixture)
 
 
   <!-- badges: start -->
