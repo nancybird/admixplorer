@@ -76,7 +76,10 @@ apply_threshold_selection <- function(improvements, method, cv, all_mcmc_results
     min_k <- as.numeric(min(as.numeric(completed_ks)))
     cat(sprintf("No feasible solutions for k=1. Minimum feasible k: %g\n", min_k))
 
-    recommended_k <- "2"
+    # Set recommended_k to the minimum feasible k
+    recommended_k <- as.character(min_k)
+
+    # Check k=2 clustering strength if it exists
     if ("2" %in% completed_ks && !is.null(all_mcmc_results[["2"]]$co_clustering_matrix)) {
       k2_str <- clustering_strength(all_mcmc_results[["2"]]$co_clustering_matrix)
       cat("\n=== CLUSTERING STRENGTH ANALYSIS ===\n")
@@ -90,24 +93,44 @@ apply_threshold_selection <- function(improvements, method, cv, all_mcmc_results
     # Continue to cascade even if k=1 missing
     use_lik <- cv >= cv_cutoff
     if (use_lik) {
-      cat("\n=== LIKELIHOOD CASCADE (k=1 missing, using k>=2) ===\n")
-      print_lik_comparison("k2_to_k3", threshold_k2_k3)
-      print_lik_comparison("k1_to_k2", threshold_k1_k2_for_k3)
+      cat("\n=== LIKELIHOOD CASCADE (k=1 missing, checking available k values) ===\n")
 
-      if (check_improvement("k2_to_k3", threshold_k2_k3) &&
-          check_improvement("k1_to_k2", threshold_k1_k2_for_k3)) {
-        recommended_k <- "3"
-        cat("=> Both criteria pass: selecting k=3\n")
+      # If k=2 exists, check k2->k3
+      if ("2" %in% completed_ks && "3" %in% completed_ks) {
+        print_lik_comparison("k2_to_k3", threshold_k2_k3)
 
+        if (check_improvement("k2_to_k3", threshold_k2_k3)) {
+          recommended_k <- "3"
+          cat("=> k2->k3 passes: selecting k=3\n")
+
+          # Check k3->k4 if k=4 exists
+          if ("4" %in% completed_ks) {
+            print_lik_comparison("k3_to_k4", threshold_k3_k4)
+            if (check_improvement("k3_to_k4", threshold_k3_k4)) {
+              recommended_k <- "4+"
+              cat("=> k3->k4 passes: selecting k=4+\n")
+            } else {
+              cat("=> k3->k4 fails: stopping at k=3\n")
+            }
+          }
+        } else {
+          cat("=> k2->k3 fails: stopping at k=2\n")
+          recommended_k <- "2"
+        }
+      } else if ("3" %in% completed_ks && "4" %in% completed_ks) {
+        # If only k=3 and k=4 exist (no k=1 or k=2)
         print_lik_comparison("k3_to_k4", threshold_k3_k4)
+
         if (check_improvement("k3_to_k4", threshold_k3_k4)) {
           recommended_k <- "4+"
           cat("=> k3->k4 passes: selecting k=4+\n")
         } else {
           cat("=> k3->k4 fails: stopping at k=3\n")
+          recommended_k <- "3"
         }
       } else {
-        cat("=> Criteria not met: stopping at k=2\n")
+        cat(sprintf("=> Insufficient k values for cascade; using minimum feasible k=%s\n",
+                    recommended_k))
       }
     }
 
