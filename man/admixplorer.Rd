@@ -29,6 +29,8 @@ admixplorer(
 \item{sample_age_est}{Whether to estimate sample ages (default TRUE)}
 
 \item{plot}{Whether to create plots (default TRUE)}
+
+\item{apply_date_filter}{Whether to filter out dates > 200 gen (default TRUE)}
 }
 \value{
 Combined output dataframe

@@ -7,6 +7,7 @@
 #' @param mcmc_chains Number of MCMC chains per k (default 3)
 #' @param sample_age_est Whether to estimate sample ages (default TRUE)
 #' @param plot Whether to create plots (default TRUE)
+#' @param apply_date_filter Whether to filter out dates > 200 gen (default TRUE)
 #' @return Combined output dataframe
 #' @export
 admixplorer <- function(infile, outfile, method = "GLOBETROTTER",
