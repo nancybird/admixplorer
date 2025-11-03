@@ -1,14 +1,6 @@
 #' Read and filter admixture data
 #'
 #' @param filename Path to input file
-#' @return List containing filtered dataframe and original individuals
-#' @export
-#' @importFrom utils read.table
-#' @importFrom dplyr filter
-
-#' Read and filter admixture data
-#'
-#' @param filename Path to input file
 #' @param apply_date_filter Logical, whether to apply date-based outlier filters (default TRUE)
 #' @return List containing filtered dataframe and original individuals
 #' @export

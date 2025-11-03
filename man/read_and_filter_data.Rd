@@ -13,8 +13,6 @@ read_and_filter_data(filename, apply_date_filter = TRUE)
 }
 \value{
 List containing filtered dataframe and original individuals
-
-List containing filtered dataframe and original individuals
 }
 \description{
 Read and filter admixture data
