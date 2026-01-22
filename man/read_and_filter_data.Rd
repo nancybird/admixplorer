@@ -4,10 +4,16 @@
 \alias{read_and_filter_data}
 \title{Read and filter admixture data}
 \usage{
-read_and_filter_data(filename, apply_date_filter = TRUE)
+read_and_filter_data(
+  filename,
+  method = "GLOBETROTTER",
+  apply_date_filter = TRUE
+)
 }
 \arguments{
 \item{filename}{Path to input file}
+
+\item{method}{Analysis method ("DATES", "GLOBETROTTER", etc.)}
 
 \item{apply_date_filter}{Logical, whether to apply date-based outlier filters (default TRUE)}
 }
