@@ -102,7 +102,7 @@ admixplorer <- function(infile, outfile, method = "GLOBETROTTER",
          ". All sampling ages must be non-negative.")
   }
 
-  filtered_data <- read_and_filter_data(infile, apply_date_filter = apply_date_filter)
+  filtered_data <- read_and_filter_data(infile, method=method, apply_date_filter = apply_date_filter)
 
   # Check if any data remains after filtering
   if (nrow(filtered_data$data) == 0) {

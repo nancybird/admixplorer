@@ -1,16 +1,22 @@
 #' Read and filter admixture data
 #'
 #' @param filename Path to input file
+#' @param method Analysis method ("DATES", "GLOBETROTTER", etc.)
 #' @param apply_date_filter Logical, whether to apply date-based outlier filters (default TRUE)
 #' @return List containing filtered dataframe and original individuals
 #' @export
 #' @importFrom utils read.table
 #' @importFrom dplyr filter
 
-read_and_filter_data <- function(filename, apply_date_filter = TRUE) {
+read_and_filter_data <- function(filename, method = "GLOBETROTTER", apply_date_filter = TRUE) {
   # Read the file
   file.read <- utils::read.table(filename, as.is = TRUE)
   original_inds <- file.read$V1
+  # Apply DATES method transformation
+  if (method == "DATES") {
+    cat("DATES method detected: subtracting 1 from V4 (ages)...\n")
+    file.read$V4 <- file.read$V4 - 1
+  }
 
   # Apply filters
   if (apply_date_filter) {
