@@ -12,11 +12,7 @@ read_and_filter_data <- function(filename, method = "GLOBETROTTER", apply_date_f
   # Read the file
   file.read <- utils::read.table(filename, as.is = TRUE)
   original_inds <- file.read$V1
-  # Apply DATES method transformation
-  if (method == "DATES") {
-    cat("DATES method detected: subtracting 1 from V4 (ages)...\n")
-    file.read$V4 <- file.read$V4 - 1
-  }
+
 
   # Apply filters
   if (apply_date_filter) {
@@ -26,6 +22,11 @@ read_and_filter_data <- function(filename, method = "GLOBETROTTER", apply_date_f
     file.read <- file.read[file.read$V4 < 200, ]
   } else {
     cat("Skipping date-based outlier filters (apply_date_filter = FALSE)\n")
+  }
+  # Apply DATES method transformation
+  if (method == "DATES") {
+    cat("DATES method detected: subtracting 1 from V4 (ages)...\n")
+    file.read$V4 <- file.read$V4 - 1
   }
 
   # Find which individuals were removed
