@@ -46,6 +46,33 @@ test_that("read_and_filter_data removes outliers correctly", {
   unlink(temp_file)
 })
 
+
+test_that("read_and_filter_data changes DATES values", {
+  # Test the exact data from your debug script
+  outlier_data <- data.frame(
+    V1 = paste0("ind", 1:6),
+    V2 = rep(0, 6),
+    V3 = rep(0, 6),
+    V4 = c(45, 50, 50, 40, 40, 35),  # ind2: V4=1 (fails V4>2), ind4: V4=200 (fails V4<150)
+    V5 = c(3, 2, 4, 3, 50, 2),       # ind5: V5=50, V4=40, 50<400 so passes
+    stringsAsFactors = FALSE
+  )
+
+  temp_file <- tempfile(fileext = ".txt")
+  write.table(outlier_data, temp_file, row.names = FALSE, col.names = FALSE, quote = FALSE)
+
+  result <- read_and_filter_data(temp_file, method="DATES")
+
+  # Based on your actual filters:
+  # ind2 removed: V4=1 fails V4 > 2
+  # ind4 removed: V4=200 fails V4 < 150
+  # ind5 kept: V5=50, V4=40, 50 < 40*10=400 (passes)
+
+  expect_equal((result$data$V4), c(44, 49, 49,39,39,34))  # 6 - 2 = 4 remaining
+
+  unlink(temp_file)
+})
+
 test_that("read_and_filter_data filters work individually", {
   # Test V4 > 2 filter
   low_date_data <- data.frame(
