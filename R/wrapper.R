@@ -157,7 +157,9 @@ admixplorer <- function(infile, outfile, method = "GLOBETROTTER",
     cv = cv,
     all_mcmc_results = all_mcmc_results
   )
+  threshold_results$improvements <- likelihood_analysis$improvements
 
+  # Step 6: Generate final output
   # Step 6: Generate final output
   final_output <- generate_final_output(
     all_mcmc_results = all_mcmc_results,

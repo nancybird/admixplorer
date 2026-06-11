@@ -59,16 +59,42 @@ generate_final_output <- function(all_mcmc_results, recommended_k, original_data
 
   # Combine and write output
   combined_output <- do.call(rbind, output_list)
+  # Extract observed likelihood improvements for reporting
+  imp <- if (!is.null(thresholds_info$improvements)) thresholds_info$improvements else list()
+
+  k1_to_k2_for_k2_val <- if (!is.null(imp$k1_to_k2)) imp$k1_to_k2 else NA_real_
+  k1_to_k2_for_k3_val <- if (!is.null(imp$k1_to_k2)) imp$k1_to_k2 else NA_real_
+  k2_to_k3_val        <- if (!is.null(imp$k2_to_k3)) imp$k2_to_k3 else NA_real_
+  k3_to_k4_val        <- if (!is.null(imp$k3_to_k4)) imp$k3_to_k4 else NA_real_
 
   summary_header <- paste0(
     "# CLUSTERING STRENGTH + LIKELIHOOD K SELECTION RESULTS (", toupper(method), ")\n",
     "# Recommended K: ", recommended_k, "\n",
     "# Method: ", method, "\n",
     "# Clustering strength threshold: ", thresholds_info$thresholds_used$clustering_strength, "\n",
-    "# Likelihood thresholds: k1 to k2(k=2):", round(thresholds_info$thresholds_used$k1_to_k2_for_k2, 3),
-    " k1 to k2(k=3):", round(thresholds_info$thresholds_used$k1_to_k2_for_k3, 3),
-    " k2 to k3:", round(thresholds_info$thresholds_used$k2_to_k3, 3),
-    " k3 to k4:", round(thresholds_info$thresholds_used$k3_to_k4, 3), "\n",
+    "# Clustering strength k=2 observed: ",
+    if (is.null(thresholds_info$clustering_strength_k2) || is.na(thresholds_info$clustering_strength_k2)) {
+      "NA"
+    } else {
+      round(thresholds_info$clustering_strength_k2, 3)
+    }, "\n",
+    "# Likelihood thresholds and observed improvements (per individual):\n",
+    "#   k1->k2 (for selecting k=2): threshold=",
+    round(thresholds_info$thresholds_used$k1_to_k2_for_k2, 3),
+    " observed=",
+    if (is.na(k1_to_k2_for_k2_val)) "NA" else round(k1_to_k2_for_k2_val, 3), "\n",
+    "#   k1->k2 (for selecting k=3): threshold=",
+    round(thresholds_info$thresholds_used$k1_to_k2_for_k3, 3),
+    " observed=",
+    if (is.na(k1_to_k2_for_k3_val)) "NA" else round(k1_to_k2_for_k3_val, 3), "\n",
+    "#   k2->k3: threshold=",
+    round(thresholds_info$thresholds_used$k2_to_k3, 3),
+    " observed=",
+    if (is.na(k2_to_k3_val)) "NA" else round(k2_to_k3_val, 3), "\n",
+    "#   k3->k4: threshold=",
+    round(thresholds_info$thresholds_used$k3_to_k4, 3),
+    " observed=",
+    if (is.na(k3_to_k4_val)) "NA" else round(k3_to_k4_val, 3), "\n",
     "#\n"
   )
   # Write output with header
