@@ -4,7 +4,7 @@
 #' @importFrom ggplot2 ggplot geom_point aes geom_hline annotate xlab ylab theme_minimal .data
 #' @importFrom gplots heatmap.2
 #' @importFrom utils write.csv
-#' @importFrom rlang .data
+
 
 plot_mcmc_results <- function(mcmc_result, k, outfile_prefix, plot = TRUE) {
   if (!plot) return()
@@ -76,8 +76,6 @@ plot_mcmc_results <- function(mcmc_result, k, outfile_prefix, plot = TRUE) {
     p <- ggplot(ll_df) +
       geom_point(aes(x = 1:nrow(ll_df), y = .data[["V1"]]),
                  alpha = 0.6) +
-      geom_hline(aes(yintercept = mean(.data[["V1"]], na.rm = TRUE)),
-                 colour = "red") +
       xlab("Iteration") +
       ylab("Log-likelihood (lambda = 10)") +
       theme_minimal()
