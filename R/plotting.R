@@ -73,7 +73,7 @@ plot_mcmc_results <- function(mcmc_result, k, outfile_prefix, plot = TRUE) {
     pdf(output.outfile, width = 9, height = 5)
 
     p <- ggplot(ll_df, aes(x = iter, y = loglik)) +
-      geom_line(alpha = 0.6) +
+      geom_point(alpha = 0.6) +
       geom_hline(
         yintercept = mean(ll[(burn_in+1):length(ll)], na.rm = TRUE),
         linetype = "dashed", colour = "red"
