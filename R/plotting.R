@@ -72,10 +72,10 @@ plot_mcmc_results <- function(mcmc_result, k, outfile_prefix, plot = TRUE) {
     clusters <- mcmc_result$result$cluster
     ordering <- order(clusters)
     ordered_matrix <- coincidence[ordering, ordering]
-    cluster_counts <- table(clusters)
-    cluster_sizes <- as.numeric(cluster_counts[order(unique(clusters))])
-    cluster_bounds <- cumsum(c(0, cluster_sizes))
 
+    clusters_ord <- clusters[ordering]                       # vector of sorted cluster labels
+    cluster_sizes <- as.numeric(table(clusters_ord))         # tabulate in the same order
+    cluster_bounds <- cumsum(c(0, cluster_sizes))
     output.outfile <- paste0(outfile_prefix, ".", k, "clust.coincidence.pdf")
     pdf(output.outfile, width = 8, height = 6)
     heatmap.2(
