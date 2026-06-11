@@ -66,16 +66,20 @@ plot_mcmc_results <- function(mcmc_result, k, outfile_prefix, plot = TRUE) {
     print(p)
     dev.off()
   }
+
   if (!is.null(mcmc_result$log_likelihood_trace_lambda10)) {
-    ll <- mcmc_result$log_likelihood_trace_lambda10
-    ll_df <- data.frame(iter = seq_along(ll), loglik = ll)
+    ll_df <- data.frame(V1 = mcmc_result$log_likelihood_trace_lambda10)
 
     output.outfile <- paste0(outfile_prefix, ".", k, "clust.loglik.lambda10.pdf")
     pdf(output.outfile, width = 9, height = 5)
 
-    p <- ggplot(ll_df, aes(x = .data$iter, y = .data$loglik)) +
-      geom_point(alpha = 0.6) +
-      xlab("Iteration") + ylab("Log-likelihood (lambda = 10)") +
+    p <- ggplot(ll_df) +
+      geom_point(aes(x = 1:nrow(ll_df), y = .data[["V1"]]),
+                 alpha = 0.6) +
+      geom_hline(aes(yintercept = mean(.data[["V1"]], na.rm = TRUE)),
+                 colour = "red") +
+      xlab("Iteration") +
+      ylab("Log-likelihood (lambda = 10)") +
       theme_minimal()
 
     print(p)
