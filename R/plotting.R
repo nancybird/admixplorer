@@ -4,6 +4,7 @@
 #' @importFrom ggplot2 ggplot geom_point aes geom_hline annotate xlab ylab theme_minimal .data
 #' @importFrom gplots heatmap.2
 #' @importFrom utils write.csv
+#' @importFrom rlang .data
 
 plot_mcmc_results <- function(mcmc_result, k, outfile_prefix, plot = TRUE) {
   if (!plot) return()
@@ -72,7 +73,7 @@ plot_mcmc_results <- function(mcmc_result, k, outfile_prefix, plot = TRUE) {
     output.outfile <- paste0(outfile_prefix, ".", k, "clust.loglik.lambda10.pdf")
     pdf(output.outfile, width = 9, height = 5)
 
-    p <- ggplot(ll_df, aes(x = iter, y = loglik)) +
+    p <- ggplot(ll_df, aes(x = .data$iter, y = .data$loglik)) +
       geom_point(alpha = 0.6) +
       xlab("Iteration") + ylab("Log-likelihood (lambda = 10)") +
       theme_minimal()
