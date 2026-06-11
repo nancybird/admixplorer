@@ -23,7 +23,8 @@ process_mcmc_results(
   age_ranges,
   time_traveler_log,
   mean_log_likelihood_lambda1,
-  mean_log_likelihood_lambda10
+  mean_log_likelihood_lambda10,
+  log_likelihood_trace_lambda10
 )
 }
 \description{
