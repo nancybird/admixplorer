@@ -47,6 +47,7 @@ mcmc_clustering <- function(dates, std_errors, init_cluster_means, cluster_assig
   # Lambda-specific likelihood tracking (KEPT AS REQUESTED)
   log_likelihoods_lambda1 <- c()
   log_likelihoods_lambda10 <- c()
+  log_likelihood_trace_lambda10 <- numeric(num_iter)
 
   current_cluster_means <- init_cluster_means
   adjusted_dates <- dates + sampling_ages
@@ -58,6 +59,7 @@ mcmc_clustering <- function(dates, std_errors, init_cluster_means, cluster_assig
   # Storage for post burn-in samples
   log_likelihoods_lambda1_post_burn_in <- numeric(0)
   log_likelihoods_lambda10_post_burn_in <- numeric(0)
+
   sampling_age_samples <- matrix(NA, nrow = (num_iter - burn_in)/thin, ncol = n)
   cluster_mean_samples <- matrix(NA, nrow = (num_iter - burn_in)/thin, ncol = k)
   co_clustering_matrix <- matrix(0, nrow = n, ncol = n)
@@ -160,6 +162,7 @@ mcmc_clustering <- function(dates, std_errors, init_cluster_means, cluster_assig
         best_cluster_assignments <- cluster_assignments
         if (sample_ages) best_sampling_ages <- sampling_ages
         best_cluster_means <- current_cluster_means
+
       }
     }
 
@@ -169,6 +172,11 @@ mcmc_clustering <- function(dates, std_errors, init_cluster_means, cluster_assig
     } else {
       log_likelihoods_lambda10 <- c(log_likelihoods_lambda10, new_log_likelihood)
     }
+    # Record current log-likelihood at lambda_cluster for diagnostics
+    log_likelihood_trace_lambda10[iter] <-
+      nig_log_likelihood(cluster_assignments, current_cluster_means,
+                         std_errors, adjusted_dates, n,
+                         lambda_cluster, age_ranges = age_ranges)$total
 
     # Store samples after burn-in
     if (iter > burn_in && (iter - burn_in) %% thin == 0) {
@@ -199,12 +207,12 @@ mcmc_clustering <- function(dates, std_errors, init_cluster_means, cluster_assig
   mean_log_likelihood_lambda1 <- mean(log_likelihoods_lambda1_post_burn_in)
   mean_log_likelihood_lambda10 <- mean(log_likelihoods_lambda10_post_burn_in)
 
-  # Post-processing
   return(process_mcmc_results(
     n, k, dates, std_errors, best_cluster_assignments, best_sampling_ages,
     best_cluster_means, sampling_age_samples, cluster_mean_samples,
     co_clustering_matrix, acceptance_rate, num_iter, burn_in, thin,
-    sample_ages, age_ranges, time_traveler_log, mean_log_likelihood_lambda1,
-    mean_log_likelihood_lambda10
+    sample_ages, age_ranges, time_traveler_log,
+    mean_log_likelihood_lambda1, mean_log_likelihood_lambda10,
+    log_likelihood_trace_lambda10
   ))
 }

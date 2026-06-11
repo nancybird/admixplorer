@@ -264,7 +264,7 @@ process_mcmc_results <- function(n, k, dates, std_errors, best_cluster_assignmen
                                  cluster_mean_samples, co_clustering_matrix, acceptance_rate,
                                  num_iter, burn_in, thin, sample_ages, age_ranges,
                                  time_traveler_log, mean_log_likelihood_lambda1,
-                                 mean_log_likelihood_lambda10) {
+                                 mean_log_likelihood_lambda10,log_likelihood_trace_lambda10) {
 
   get_ci <- function(x) {
     q <- stats::quantile(x, probs = c(0.025, 0.975), na.rm = TRUE)
@@ -363,6 +363,7 @@ process_mcmc_results <- function(n, k, dates, std_errors, best_cluster_assignmen
     result = result_df,
     co_clustering_matrix = co_clustering_df,
     cluster_mean_samples = cluster_mean_samples,
-    sampling_age_samples = if (sample_ages) sampling_age_samples else NULL
+    sampling_age_samples = if (sample_ages) sampling_age_samples else NULL,
+    log_likelihood_trace_lambda10 = log_likelihood_trace_lambda10
   ))
 }

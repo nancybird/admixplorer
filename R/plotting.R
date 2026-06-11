@@ -65,6 +65,25 @@ plot_mcmc_results <- function(mcmc_result, k, outfile_prefix, plot = TRUE) {
     print(p)
     dev.off()
   }
+  if (!is.null(mcmc_result$log_likelihood_trace_lambda10)) {
+    ll <- mcmc_result$log_likelihood_trace_lambda10
+    ll_df <- data.frame(iter = seq_along(ll), loglik = ll)
+
+    output.outfile <- paste0(outfile_prefix, ".", k, "clust.loglik.lambda10.pdf")
+    pdf(output.outfile, width = 9, height = 5)
+
+    p <- ggplot(ll_df, aes(x = iter, y = loglik)) +
+      geom_line(alpha = 0.6) +
+      geom_hline(
+        yintercept = mean(ll[(burn_in+1):length(ll)], na.rm = TRUE),
+        linetype = "dashed", colour = "red"
+      ) +
+      xlab("Iteration") + ylab("Log-likelihood (lambda = 10)") +
+      theme_minimal()
+
+    print(p)
+    dev.off()
+  }
 
   # Co-clustering heatmap
   if (!is.null(mcmc_result$co_clustering_matrix)) {
