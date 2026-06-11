@@ -74,10 +74,6 @@ plot_mcmc_results <- function(mcmc_result, k, outfile_prefix, plot = TRUE) {
 
     p <- ggplot(ll_df, aes(x = iter, y = loglik)) +
       geom_point(alpha = 0.6) +
-      geom_hline(
-        yintercept = mean(ll[(burn_in+1):length(ll)], na.rm = TRUE),
-        linetype = "dashed", colour = "red"
-      ) +
       xlab("Iteration") + ylab("Log-likelihood (lambda = 10)") +
       theme_minimal()
 
