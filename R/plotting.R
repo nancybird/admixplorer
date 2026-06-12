@@ -68,14 +68,19 @@ plot_mcmc_results <- function(mcmc_result, k, outfile_prefix, plot = TRUE) {
   }
 
   if (!is.null(mcmc_result$log_likelihood_trace_lambda10)) {
-    ll_df <- data.frame(V1 = mcmc_result$log_likelihood_trace_lambda10)
+    ll_df <- data.frame(
+      iter = seq_along(mcmc_result$log_likelihood_trace_lambda10),
+      ll = mcmc_result$log_likelihood_trace_lambda10
+    )
+
+    keep <- seq(1, nrow(ll_df), by = 100)
+    ll_df_sub <- ll_df[keep, , drop = FALSE]
 
     output.outfile <- paste0(outfile_prefix, ".", k, "clust.loglik.lambda10.pdf")
     pdf(output.outfile, width = 9, height = 5)
 
-    p <- ggplot( ll_df[seq(1, nrow(ll_df), by = 100), ]) +
-      geom_point(aes(x = 1:nrow(ll_df), y = .data[["V1"]]),
-                 alpha = 0.6) +
+    p <- ggplot(ll_df_sub, aes(x = iter, y = ll)) +
+      geom_point(alpha = 0.6) +
       xlab("Iteration") +
       ylab("Log-likelihood (lambda = 10)") +
       theme_minimal()
@@ -83,7 +88,6 @@ plot_mcmc_results <- function(mcmc_result, k, outfile_prefix, plot = TRUE) {
     print(p)
     dev.off()
   }
-
   # Co-clustering heatmap
   if (!is.null(mcmc_result$co_clustering_matrix)) {
     coincidence <- as.matrix(mcmc_result$co_clustering_matrix)
