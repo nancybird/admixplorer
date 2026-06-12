@@ -73,7 +73,7 @@ plot_mcmc_results <- function(mcmc_result, k, outfile_prefix, plot = TRUE) {
     output.outfile <- paste0(outfile_prefix, ".", k, "clust.loglik.lambda10.pdf")
     pdf(output.outfile, width = 9, height = 5)
 
-    p <- ggplot(ll_df) +
+    p <- ggplot( ll_df[seq(1, nrow(ll_df), by = 100), ]) +
       geom_point(aes(x = 1:nrow(ll_df), y = .data[["V1"]]),
                  alpha = 0.6) +
       xlab("Iteration") +
