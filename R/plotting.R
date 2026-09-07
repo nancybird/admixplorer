@@ -125,3 +125,80 @@ plot_mcmc_results <- function(mcmc_result, k, outfile_prefix, plot = TRUE) {
   }
 }
 
+#' Plot per-individual likelihood heatmap across k
+#'
+#' @param all_mcmc_results List of MCMC results (one entry per k, as used in generate_final_output)
+#' @param pop.vec Population vector, same order as individuals in mcmc_result
+#' @param outfile Output file prefix
+#' @param outlier_sd_thresh SD threshold below the row mean to flag an individual as an outlier (default 2)
+#' @return Data frame of flagged outlier individuals (invisibly)
+#' @export
+#' @importFrom gplots heatmap.2
+#' @importFrom grDevices pdf dev.off colorRampPalette
+#' @importFrom utils write.csv
+plot_individual_likelihood_heatmap <- function(all_mcmc_results, pop.vec, outfile,
+                                               outlier_sd_thresh = 2) {
+
+  completed_ks <- names(all_mcmc_results)[!sapply(all_mcmc_results, is.null)]
+  completed_ks <- completed_ks[order(as.numeric(completed_ks))]
+
+  if (length(completed_ks) < 2) {
+    cat("Need at least two completed k values to build likelihood heatmap - skipping.\n")
+    return(invisible(NULL))
+  }
+
+  # Build matrix: rows = k (pulses), columns = individuals
+  ll_list <- lapply(completed_ks, function(k) {
+    mcmc_result <- all_mcmc_results[[k]]
+    mcmc_result$result$final_log_likelihood_best_sampling_ages_perind
+  })
+
+  n_ind <- length(ll_list[[1]])
+  ll_matrix <- do.call(rbind, ll_list)
+  rownames(ll_matrix) <- paste0("k=", completed_ks)
+  colnames(ll_matrix) <- if (!is.null(pop.vec)) {
+    make.unique(paste0(seq_len(n_ind), "_", pop.vec))
+  } else {
+    as.character(seq_len(n_ind))
+  }
+
+  # Flag outliers: individuals whose likelihood is far below the row mean
+  # in every single k (i.e. consistently poor fit regardless of model complexity)
+  row_z <- t(scale(t(ll_matrix)))  # z-score within each k row
+  is_low_everywhere <- apply(row_z, 2, function(col) all(col < -outlier_sd_thresh))
+  outlier_inds <- colnames(ll_matrix)[is_low_everywhere]
+
+  output.outfile <- paste0(outfile, ".individual_likelihood_heatmap.pdf")
+  pdf(output.outfile, width = 10, height = 6)
+  heatmap.2(
+    ll_matrix,
+    Rowv = FALSE,
+    Colv = FALSE,
+    dendrogram = "none",
+    trace = "none",
+    col = colorRampPalette(c("red", "white", "blue"))(100),
+    margins = c(8, 8),
+    cexRow = 0.9,
+    cexCol = 0.6,
+    key = TRUE,
+    density.info = "none",
+    key.xlab = "Log-likelihood",
+    main = "Per-individual log-likelihood across pulse number (k)",
+    xlab = "Individual",
+    ylab = "Number of pulses (k)"
+  )
+  dev.off()
+
+  # Save CSV
+  write.csv(ll_matrix, paste0(outfile, ".individual_likelihood_heatmap.csv"))
+
+  if (length(outlier_inds) > 0) {
+    cat("Potential outlier individuals (low likelihood across all tested k):",
+        paste(outlier_inds, collapse = ", "), "\n")
+  } else {
+    cat("No individuals flagged as consistent outliers across tested k.\n")
+  }
+
+  invisible(data.frame(individual = outlier_inds, stringsAsFactors = FALSE))
+}
+
