@@ -170,25 +170,30 @@ plot_individual_likelihood_heatmap <- function(all_mcmc_results, pop.vec, outfil
 
   output.outfile <- paste0(outfile, ".individual_likelihood_heatmap.pdf")
   pdf(output.outfile, width = 10, height = 6)
+
+  par(cex.main = 0.8)
+
   heatmap.2(
     ll_matrix,
     Rowv = FALSE,
     Colv = FALSE,
     dendrogram = "none",
     trace = "none",
-    col = colorRampPalette(c("red", "white", "blue"))(100),
+    col = colorRampPalette(c("darkred", "red", "white"))(100),
     margins = c(8, 8),
     cexRow = 0.9,
     cexCol = 0.6,
     key = TRUE,
+    symbreaks = FALSE,
+    symkey = FALSE,
     density.info = "none",
     key.xlab = "Log-likelihood",
+    lhei = c(1.5, 5),
     main = "Per-individual log-likelihood across pulse number (k)",
     xlab = "Individual",
     ylab = "Number of pulses (k)"
   )
   dev.off()
-
   # Save CSV
   write.csv(ll_matrix, paste0(outfile, ".individual_likelihood_heatmap.csv"))
 
