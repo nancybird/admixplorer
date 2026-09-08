@@ -84,6 +84,7 @@ mcmc_clustering <- function(dates, std_errors, init_cluster_means, cluster_assig
     proposed_assignments <- cluster_assignments
     proposed_sampling_ages <- sampling_ages
     move_type <- NULL
+    empty_cluster_proposed <- FALSE
 
     # Choose move type and set appropriate lambda
     if (sample_ages && length(free_age_inds) && (k == 1 || stats::runif(1) < 0.5)) {
@@ -108,6 +109,7 @@ mcmc_clustering <- function(dates, std_errors, init_cluster_means, cluster_assig
                                                  age_ranges = age_ranges)$total
 
     # Update proposed cluster means and check for time travelers
+    if (!empty_cluster_proposed) {
     for (j in 1:k) {
       if (sum(proposed_assignments == j) > 0) {
         cluster_dates <- proposed_adjusted_dates[proposed_assignments == j]
@@ -131,6 +133,7 @@ mcmc_clustering <- function(dates, std_errors, init_cluster_means, cluster_assig
       }
     }
 
+
     # Relabel clusters by mean
     valid <- !is.na(proposed_means)
     ordered_clusters <- order(proposed_means[valid])
@@ -143,6 +146,11 @@ mcmc_clustering <- function(dates, std_errors, init_cluster_means, cluster_assig
     new_log_likelihood <- nig_log_likelihood(proposed_assignments, proposed_means,
                                              std_errors, proposed_adjusted_dates,
                                              n, lambda_used, age_ranges = age_ranges)$total
+    } else {
+      # Empty-cluster move: automatic rejection, keep state unchanged
+      proposed_means <- current_cluster_means
+      new_log_likelihood <- current_log_likelihood
+    }
 
 
     # Accept/reject step
