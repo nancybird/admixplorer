@@ -164,34 +164,30 @@ plot_individual_likelihood_heatmap <- function(all_mcmc_results, pop.vec, outfil
 
   # Flag outliers: individuals whose likelihood is far below the row mean
   # in every single k (i.e. consistently poor fit regardless of model complexity)
-  row_z <- t(scale(t(ll_matrix)))  # z-score within each k row
+  row_z <- t(scale(t(ll_matrix))) # z-score within each k row
   is_low_everywhere <- apply(row_z, 2, function(col) all(col < -outlier_sd_thresh))
   outlier_inds <- colnames(ll_matrix)[is_low_everywhere]
 
   output.outfile <- paste0(outfile, ".individual_likelihood_heatmap.pdf")
   pdf(output.outfile, width = 10, height = 6)
-
   heatmap.2(
     ll_matrix,
     Rowv = FALSE,
     Colv = FALSE,
     dendrogram = "none",
     trace = "none",
-    col = colorRampPalette(c("darkred", "red", "white"))(100),
+    col = colorRampPalette(c("red", "white"))(100),
     margins = c(8, 8),
     cexRow = 0.9,
     cexCol = 0.6,
     key = TRUE,
-    symbreaks = FALSE,
-    symkey = FALSE,
     density.info = "none",
     key.xlab = "Log-likelihood",
-    lhei = c(1.5, 5),
-    main = "Per-individual log-likelihood across pulse number (k)",
     xlab = "Individual",
     ylab = "Number of pulses (k)"
   )
   dev.off()
+
   # Save CSV
   write.csv(ll_matrix, paste0(outfile, ".individual_likelihood_heatmap.csv"))
 
@@ -204,4 +200,3 @@ plot_individual_likelihood_heatmap <- function(all_mcmc_results, pop.vec, outfil
 
   invisible(data.frame(individual = outlier_inds, stringsAsFactors = FALSE))
 }
-
