@@ -253,7 +253,12 @@ em_clustering_safe <- function(dates, std_errors, k = 2, cluster_means=sample(da
 #' @keywords internal
 process_single_k <- function(k_current, prepared_data, chains, sample_age_est, plot, outfile) {
   cat("\n>>> Processing k =", k_current, "<<<\n")
-
+  n_inds <- length(prepared_data$dates_original)
+  if (n_inds < k_current) {
+    cat(sprintf("Skipping k=%d: only %d individual(s) available (need n >= k).\n",
+                k_current, n_inds))
+    return(NULL)
+  }
   mcmc_results <- list()
 
   # Check if there are any ancients (non-zero age ranges)

@@ -24,6 +24,26 @@ mcmc_clustering <- function(dates, std_errors, init_cluster_means, cluster_assig
   n <- length(dates)
   lambda_age <- 1
   lambda_cluster <- 10
+  if (n < k) {
+    stop(sprintf("Cannot fit k=%d clusters with only n=%d individuals.", k, n))
+  }
+
+  if (k > 1) {
+    init_counts <- tabulate(cluster_assignments, nbins = k)
+    if (any(init_counts == 0)) {
+      warning(sprintf(
+        "Initial cluster assignment has empty cluster(s) for k=%d, n=%d. Reassigning greedily.", k, n))
+      # Force at least 1 member per cluster: assign clusters 1..k to the k
+      # individuals closest to being "spread apart" on the date axis, rest random
+      ord <- order(dates)
+      cluster_assignments <- rep(NA, n)
+      cluster_assignments[ord[1:k]] <- 1:k
+      remaining <- setdiff(seq_len(n), ord[1:k])
+      if (length(remaining) > 0) {
+        cluster_assignments[remaining] <- sample(1:k, length(remaining), replace = TRUE)
+      }
+    }
+  }
 
   # Helper function for confidence intervals
   get_ci <- function(x) {
@@ -159,10 +179,6 @@ mcmc_clustering <- function(dates, std_errors, init_cluster_means, cluster_assig
     if (log_accept_ratio > 0 || log(stats::runif(1)) < log_accept_ratio) {
       acceptance_rate <- acceptance_rate + 1
       cluster_assignments <- proposed_assignments
-      if (any(is.na(cluster_assignments))) {
-        stop(sprintf("NA in cluster_assignments at iter %d. Assignments: %s",
-                     iter, paste(cluster_assignments, collapse=",")))
-      }
       if (sample_ages) sampling_ages <- proposed_sampling_ages
       adjusted_dates <- proposed_adjusted_dates
       current_cluster_means <- proposed_means
