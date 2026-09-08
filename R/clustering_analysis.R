@@ -234,6 +234,7 @@ apply_threshold_selection <- function(improvements, method, cv, all_mcmc_results
     recommended_k          = recommended_k,
     thresholds_used        = base_thresholds,
     clustering_strength_k2 = if (exists("k2_str")) k2_str else NA,
+    improvements = scaled_improvements,
     decision_log           = list(
       k2_strength      = if (exists("k2_str")) k2_str else NA,
       pass_k1_to_k2    = check_improvement("k1_to_k2", threshold_k1_k2_for_k2),
