@@ -159,6 +159,10 @@ mcmc_clustering <- function(dates, std_errors, init_cluster_means, cluster_assig
     if (log_accept_ratio > 0 || log(stats::runif(1)) < log_accept_ratio) {
       acceptance_rate <- acceptance_rate + 1
       cluster_assignments <- proposed_assignments
+      if (any(is.na(cluster_assignments))) {
+        stop(sprintf("NA in cluster_assignments at iter %d. Assignments: %s",
+                     iter, paste(cluster_assignments, collapse=",")))
+      }
       if (sample_ages) sampling_ages <- proposed_sampling_ages
       adjusted_dates <- proposed_adjusted_dates
       current_cluster_means <- proposed_means
