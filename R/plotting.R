@@ -171,8 +171,6 @@ plot_individual_likelihood_heatmap <- function(all_mcmc_results, pop.vec, outfil
   output.outfile <- paste0(outfile, ".individual_likelihood_heatmap.pdf")
   pdf(output.outfile, width = 10, height = 6)
 
-  par(cex.main = 0.8)
-
   heatmap.2(
     ll_matrix,
     Rowv = FALSE,
