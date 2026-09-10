@@ -162,12 +162,6 @@ plot_individual_likelihood_heatmap <- function(all_mcmc_results, pop.vec, outfil
     as.character(seq_len(n_ind))
   }
 
-  # Flag outliers: individuals whose likelihood is far below the row mean
-  # in every single k (i.e. consistently poor fit regardless of model complexity)
-  row_z <- t(scale(t(ll_matrix))) # z-score within each k row
-  is_low_everywhere <- apply(row_z, 2, function(col) all(col < -outlier_sd_thresh))
-  outlier_inds <- colnames(ll_matrix)[is_low_everywhere]
-
   output.outfile <- paste0(outfile, ".individual_likelihood_heatmap.pdf")
   pdf(output.outfile, width = 10, height = 6)
   heatmap.2(
@@ -176,7 +170,7 @@ plot_individual_likelihood_heatmap <- function(all_mcmc_results, pop.vec, outfil
     Colv = FALSE,
     dendrogram = "none",
     trace = "none",
-    col = colorRampPalette(c("red", "white"))(100),
+    col = colorRampPalette(c("red", "white", "blue"))(100),
     margins = c(8, 8),
     cexRow = 0.9,
     cexCol = 0.6,
@@ -191,12 +185,6 @@ plot_individual_likelihood_heatmap <- function(all_mcmc_results, pop.vec, outfil
   # Save CSV
   write.csv(ll_matrix, paste0(outfile, ".individual_likelihood_heatmap.csv"))
 
-  if (length(outlier_inds) > 0) {
-    cat("Potential outlier individuals (low likelihood across all tested k):",
-        paste(outlier_inds, collapse = ", "), "\n")
-  } else {
-    cat("No individuals flagged as consistent outliers across tested k.\n")
-  }
 
   invisible(data.frame(individual = outlier_inds, stringsAsFactors = FALSE))
 }
