@@ -185,6 +185,4 @@ plot_individual_likelihood_heatmap <- function(all_mcmc_results, pop.vec, outfil
   # Save CSV
   write.csv(ll_matrix, paste0(outfile, ".individual_likelihood_heatmap.csv"))
 
-
-  invisible(data.frame(individual = outlier_inds, stringsAsFactors = FALSE))
 }
