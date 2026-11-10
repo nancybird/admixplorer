@@ -289,33 +289,43 @@ process_single_k <- function(k_current, prepared_data, chains,
       prepared_data$age.matrix[, 2]
     )
 
-    # 2. Apply the original greedy repair if any cluster is empty.
+    # 2. Preserve EM assignments, moving one individual per empty cluster.
     if (k_current > 1) {
-      init_counts <- tabulate(
-        cluster_assignments, nbins = k_current
+      cluster_counts <- tabulate(
+        cluster_assignments,
+        nbins = k_current
       )
 
-      if (any(init_counts == 0)) {
-        cat(sprintf(
-          "Chain %d: empty EM cluster(s); reassigning greedily.\n",
-          chain
-        ))
+      empty_clusters <- which(cluster_counts == 0L)
 
-        ord <- order(prepared_data$dates_original)
-        cluster_assignments <- rep(NA, n_inds)
-        cluster_assignments[ord[1:k_current]] <- 1:k_current
-
-        remaining <- setdiff(
-          seq_len(n_inds), ord[1:k_current]
+      for (empty_cluster in empty_clusters) {
+        # Only move individuals whose current cluster has >1 member.
+        eligible_inds <- which(
+          cluster_counts[cluster_assignments] > 1L
         )
 
-        if (length(remaining) > 0) {
-          cluster_assignments[remaining] <- sample(
-            1:k_current,
-            length(remaining),
-            replace = TRUE
-          )
+        if (length(eligible_inds) == 0L) {
+          stop("Cannot fill empty clusters without emptying a donor cluster.")
         }
+
+        # sample.int avoids sample()'s special behaviour for one numeric value.
+        moved_ind <- eligible_inds[
+          sample.int(length(eligible_inds), 1L)
+        ]
+
+        donor_cluster <- cluster_assignments[moved_ind]
+        cluster_assignments[moved_ind] <- empty_cluster
+
+        # Update counts before repairing the next empty cluster.
+        cluster_counts[donor_cluster] <-
+          cluster_counts[donor_cluster] - 1L
+
+        cluster_counts[empty_cluster] <- 1L
+
+        cat(sprintf(
+          "Chain %d: moved individual %d from cluster %d to empty cluster %d.\n",
+          chain, moved_ind, donor_cluster, empty_cluster
+        ))
       }
     }
 
