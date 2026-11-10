@@ -66,7 +66,30 @@ generate_final_output <- function(all_mcmc_results, recommended_k, original_data
   k1_to_k2_for_k3_val <- if (!is.null(imp$k1_to_k2)) imp$k1_to_k2 else NA_real_
   k2_to_k3_val        <- if (!is.null(imp$k2_to_k3)) imp$k2_to_k3 else NA_real_
   k3_to_k4_val        <- if (!is.null(imp$k3_to_k4)) imp$k3_to_k4 else NA_real_
+  format_improvement <- function(value, required_ks) {
+    completed <- thresholds_info$completed_ks
 
+    if (!is.null(completed)) {
+      missing_ks <- setdiff(
+        as.character(required_ks),
+        as.character(completed)
+      )
+
+      if (length(missing_ks) > 0L) {
+        return(paste0(
+          "not available (k=",
+          paste(missing_ks, collapse = ","),
+          " not completed)"
+        ))
+      }
+    }
+
+    if (length(value) != 1L || is.na(value)) {
+      return("not available")
+    }
+
+    as.character(round(value, 3))
+  }
   summary_header <- paste0(
     "# CLUSTERING STRENGTH + LIKELIHOOD K SELECTION RESULTS (", toupper(method), ")\n",
     "# Recommended K: ", recommended_k, "\n",
@@ -82,20 +105,19 @@ generate_final_output <- function(all_mcmc_results, recommended_k, original_data
     "#   k1->k2 (for selecting k=2): threshold=",
     round(thresholds_info$thresholds_used$k1_to_k2_for_k2, 3),
     " observed=",
-    if (is.na(k1_to_k2_for_k2_val)) "NA" else round(k1_to_k2_for_k2_val, 3), "\n",
+    format_improvement(k1_to_k2_for_k2_val, c(1, 2)), "\n",
     "#   k1->k2 (for selecting k=3): threshold=",
     round(thresholds_info$thresholds_used$k1_to_k2_for_k3, 3),
     " observed=",
-    if (is.na(k1_to_k2_for_k3_val)) "NA" else round(k1_to_k2_for_k3_val, 3), "\n",
+    format_improvement(k1_to_k2_for_k3_val, c(1, 2)), "\n",
     "#   k2->k3: threshold=",
     round(thresholds_info$thresholds_used$k2_to_k3, 3),
     " observed=",
-    if (is.na(k2_to_k3_val)) "NA" else round(k2_to_k3_val, 3), "\n",
+    format_improvement(k2_to_k3_val, c(2, 3)), "\n",
     "#   k3->k4: threshold=",
     round(thresholds_info$thresholds_used$k3_to_k4, 3),
     " observed=",
-    if (is.na(k3_to_k4_val)) "NA" else round(k3_to_k4_val, 3), "\n",
-    "#\n"
+    format_improvement(k3_to_k4_val, c(3, 4)), "\n",  "#\n"
   )
   # Write output with header
   output.outfile <- paste0(outfile, ".output.txt")
