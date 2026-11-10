@@ -30,10 +30,14 @@
     r[cbind(seq_along(labels), labels)] <- 1
     list(responsibilities = r, cluster_means = mean_fn(labels, dates, std_errors, k))
   }
-  # Force the same original greedy random choices to make branch tests stable.
-  sandbox$sample <- function(x, size, replace = FALSE, ...) {
-    event("greedy")
-    rep(x[1L], size)
+  # Choose the first eligible individual, making repair tests deterministic.
+  # This harness supplies only one fallback solution, so its selection
+  # uses n = 1 and is not recorded as an empty-cluster repair.
+  sandbox$sample.int <- function(n, size, replace = FALSE, ...) {
+    if (n > 1L) {
+      event("greedy")
+    }
+    rep.int(1L, size)
   }
   sandbox$compute_cluster_means <- function(assignments, dates, std_errors, k) {
     seen$candidates[[length(seen$candidates) + 1L]] <- assignments
@@ -87,27 +91,107 @@ test_that("valid EM assignments go straight through the gate to MCMC", {
   expect_equal(h$seen$starts[[1L]]$assignments, a)
 })
 
-test_that("collapsed EM assignments are repaired before validation", {
-  h <- .greedy_gate_harness(rep(1L, 10L), modern = TRUE)
+test_that("collapsed EM assignments move only one individual into the empty cluster", {
+  original <- rep(1L, 10L)
+
+  h <- .greedy_gate_harness(
+    original,
+    modern = TRUE
+  )
+
   expect_no_error(h$run())
+
   events <- h$seen$events
+
   expect_identical(events[1L], "EM")
-  expect_true(match("greedy", events) < match("validate", events))
+  expect_true(
+    match("greedy", events) < match("validate", events)
+  )
   expect_false("feasibility" %in% events)
   expect_length(h$seen$starts, 1L)
-  expected <- rep(1L, 10L)
-  ord <- order(h$p$dates_original)
-  expected[ord[1:2]] <- 1:2
-  expect_equal(h$seen$starts[[1L]]$assignments, expected)
-  expect_true(all(tabulate(h$seen$starts[[1L]]$assignments, nbins = 2L) > 0L))
+
+  repaired <- h$seen$starts[[1L]]$assignments
+  counts <- tabulate(repaired, nbins = 2L)
+
+  # Exactly one individual moves; all other EM assignments survive.
+  expect_equal(sum(repaired != original), 1L)
+
+  # The formerly empty cluster gets exactly one individual.
+  expect_equal(counts, c(9L, 1L))
+
+  # The deterministic mock selects the first eligible individual.
+  expected <- original
+  expected[1L] <- 2L
+  expect_equal(repaired, expected)
+
+  # The actual repaired state is validated before entering MCMC.
+  expect_true(
+    match("validate", events) < match("MCMC", events)
+  )
 })
 
-test_that("a partially empty k equals three EM start is also repaired", {
-  h <- .greedy_gate_harness(c(rep(1L, 9L), 3L), modern = TRUE)
+test_that("empty-cluster repair preserves occupied singleton clusters", {
+  # Cluster 2 is empty; cluster 3 already contains a singleton.
+  original <- c(rep(1L, 9L), 3L)
+
+  h <- .greedy_gate_harness(
+    original,
+    modern = TRUE
+  )
+
   expect_no_error(h$run())
   expect_true("greedy" %in% h$seen$events)
   expect_false("feasibility" %in% h$seen$events)
-  expect_true(all(tabulate(h$seen$starts[[1L]]$assignments, nbins = 3L) > 0L))
+  expect_length(h$seen$starts, 1L)
+
+  repaired <- h$seen$starts[[1L]]$assignments
+
+  # Only one individual should move into the empty cluster.
+  expect_equal(sum(repaired != original), 1L)
+  expect_equal(
+    tabulate(repaired, nbins = 3L),
+    c(8L, 1L, 1L)
+  )
+
+  # The existing singleton must not be used as a donor.
+  expect_equal(repaired[10L], 3L)
+
+  expected <- original
+  expected[1L] <- 2L
+  expect_equal(repaired, expected)
+})
+
+test_that("several empty clusters require only one move each", {
+  # Fit k=5, but EM occupies only clusters 1 and 5.
+  # Cluster 5 is a singleton and must remain untouched.
+  original <- c(rep(1L, 9L), 5L)
+
+  h <- .greedy_gate_harness(
+    original,
+    modern = TRUE
+  )
+
+  expect_no_error(h$run())
+  expect_false("feasibility" %in% h$seen$events)
+  expect_length(h$seen$starts, 1L)
+
+  repaired <- h$seen$starts[[1L]]$assignments
+  counts <- tabulate(repaired, nbins = 5L)
+
+  # Three empty clusters: exactly three individuals move.
+  expect_equal(sum(repaired != original), 3L)
+
+  # Every requested cluster is occupied.
+  expect_true(all(counts > 0L))
+  expect_equal(counts, c(6L, 1L, 1L, 1L, 1L))
+
+  # Existing singleton is retained.
+  expect_equal(repaired[10L], 5L)
+
+  # With the deterministic mock, individuals 1, 2 and 3 move.
+  expected <- original
+  expected[1:3] <- 2:4
+  expect_equal(repaired, expected)
 })
 
 test_that("invalid greedy repair triggers feasibility before MCMC", {
