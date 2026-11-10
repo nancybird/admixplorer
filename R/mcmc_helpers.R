@@ -197,9 +197,9 @@ print_time_traveler_summary <- function(time_traveler_log, k) {
 
     # Suggest action
     most_problematic <- as.numeric(names(tt_counts)[1:min(3, length(tt_counts))])
-    cat("SUGGESTION: Potentially remove individual(s)", paste(most_problematic, collapse = ", ") "if no valid solution is found")
+    cat("SUGGESTION: Potentially remove individual(s)", paste(most_problematic, collapse = ", "), "if no valid solution is found")
   }
-}
+
 
 #' Create final result dataframe
 #' @keywords internal
