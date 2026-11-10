@@ -28,6 +28,22 @@ mcmc_clustering <- function(dates, std_errors, init_cluster_means, cluster_assig
   if (n < k) {
     stop(sprintf("Cannot fit k=%d clusters with only n=%d individuals.", k, n))
   }
+  # The starting assignments have already been repaired and checked.
+  # Do not change them again inside MCMC.
+  if (
+    length(sampling_ages) != n ||
+    !valid_mcmc_start(
+      assignments = cluster_assignments,
+      means = init_cluster_means,
+      sampling_ages = sampling_ages,
+      age_ranges = age_ranges,
+      k = k
+    )
+  ) {
+    stop(
+      "Invalid MCMC initial state: check cluster occupancy, means and sampling ages."
+    )
+  }
 
   # The caller must supply a checked starting state.
   # Do not silently change assignments after validation.
@@ -44,6 +60,7 @@ mcmc_clustering <- function(dates, std_errors, init_cluster_means, cluster_assig
     stop(
       "Invalid MCMC initial state: check cluster occupancy, means and sampling ages."
     )
+
   }
 
   # Helper function for confidence intervals
@@ -150,12 +167,14 @@ mcmc_clustering <- function(dates, std_errors, init_cluster_means, cluster_assig
 
     # Update proposed cluster means and check for time travelers
     if (!empty_cluster_proposed) {
+
       for (j in 1:k) {
         if (sum(proposed_assignments == j) > 0) {
           cluster_dates <- proposed_adjusted_dates[proposed_assignments == j]
           cluster_errors <- std_errors[proposed_assignments == j]
           weights <- inverse_variances[proposed_assignments == j]
           proposed_means[j] <- sum(cluster_dates * weights) / sum(weights)
+
 
           # Check for time travelers
           if (!is.null(age_ranges) && !is.null(sampling_ages)) {

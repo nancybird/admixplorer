@@ -251,126 +251,191 @@ em_clustering_safe <- function(dates, std_errors, k = 2, cluster_means=sample(da
 #' @param outfile Output file prefix
 #' @return MCMC results for this k value
 #' @keywords internal
-process_single_k <- function(k_current, prepared_data, chains, sample_age_est, plot, outfile) {
+process_single_k <- function(k_current, prepared_data, chains,
+                             sample_age_est, plot, outfile) {
   cat("\n>>> Processing k =", k_current, "<<<\n")
   n_inds <- length(prepared_data$dates_original)
+
   if (n_inds < k_current) {
-    cat(sprintf("Skipping k=%d: only %d individual(s) available (need n >= k).\n",
-                k_current, n_inds))
+    cat(sprintf(
+      "Skipping k=%d: only %d individual(s) available (need n >= k).\n",
+      k_current, n_inds
+    ))
     return(NULL)
   }
-  mcmc_results <- vector("list", chains)
-  dates <- prepared_data$dates_original
-  std_errors <- prepared_data$std_errors
-  age_ranges <- prepared_data$age.matrix
 
-  # Fit EM once per k, before attempting feasibility testing.
-  cat("Running EM for initial cluster assignments\n")
+  # 1. Always run EM first.
   em_result <- em_clustering_original(
-    dates + prepared_data$midpoint_ages,
-    std_errors = std_errors,
+    prepared_data$dates_original + prepared_data$midpoint_ages,
+    std_errors = prepared_data$std_errors,
     n_init = 10000,
     k = k_current
   )
 
-  responsibilities <- em_result$responsibilities
-  em_assignments <- if (
-    is.matrix(responsibilities) &&
-    all(dim(responsibilities) == c(n_inds, k_current)) &&
-    all(is.finite(responsibilities))
-  ) {
-    apply(responsibilities, 1, which.max)
-  } else {
-    rep(NA_integer_, n_inds)
-  }
+  em_assignments <- apply(
+    em_result$responsibilities, 1, which.max
+  )
 
-  # Draw starting ages and compute hard-assignment means, as in the MCMC.
-  make_start <- function(assignments, sampling_ages) {
-    means <- rep(NA_real_, k_current)
-    labels_ok <- length(assignments) == n_inds &&
-      all(is.finite(assignments)) &&
-      all(assignments == floor(assignments)) &&
-      all(assignments >= 1L & assignments <= k_current)
-    if (labels_ok) {
-      means <- compute_cluster_means(
-        assignments, dates + sampling_ages, std_errors, k_current
-      )
-    }
-    list(assignments = assignments, means = means, sampling_ages = sampling_ages)
-  }
-  start_is_valid <- function(start) {
-    valid_mcmc_start(
-      start$assignments, start$means, start$sampling_ages,
-      age_ranges, k_current
-    )
-  }
+  # Filled only if a chain's EM/greedy start fails validation.
   feasible_starts <- NULL
+  mcmc_results <- vector("list", chains)
 
   for (chain in seq_len(chains)) {
-    start <- make_start(
-      em_assignments,
-      runif(n_inds, age_ranges[, 1], age_ranges[, 2])
+    cluster_assignments <- em_assignments
+
+    sampling_ages <- stats::runif(
+      n_inds,
+      prepared_data$age.matrix[, 1],
+      prepared_data$age.matrix[, 2]
     )
 
-    if (!start_is_valid(start)) {
-      # Only run the feasibility search when an EM-derived start fails.
-      # Cache the checked solutions so later chains do not repeat the search.
+    # 2. Apply the original greedy repair if any cluster is empty.
+    if (k_current > 1) {
+      init_counts <- tabulate(
+        cluster_assignments, nbins = k_current
+      )
+
+      if (any(init_counts == 0)) {
+        cat(sprintf(
+          "Chain %d: empty EM cluster(s); reassigning greedily.\n",
+          chain
+        ))
+
+        ord <- order(prepared_data$dates_original)
+        cluster_assignments <- rep(NA, n_inds)
+        cluster_assignments[ord[1:k_current]] <- 1:k_current
+
+        remaining <- setdiff(
+          seq_len(n_inds), ord[1:k_current]
+        )
+
+        if (length(remaining) > 0) {
+          cluster_assignments[remaining] <- sample(
+            1:k_current,
+            length(remaining),
+            replace = TRUE
+          )
+        }
+      }
+    }
+
+    # Recompute means after any repair, using this chain's actual ages.
+    initial_means <- compute_cluster_means(
+      cluster_assignments,
+      prepared_data$dates_original + sampling_ages,
+      prepared_data$std_errors,
+      k_current
+    )
+
+    # 3. Validate the EM-derived or greedy-repaired starting state.
+    if (!valid_mcmc_start(
+      cluster_assignments,
+      initial_means,
+      sampling_ages,
+      prepared_data$age.matrix,
+      k_current
+    )) {
+      cat(sprintf(
+        "Chain %d: EM/greedy start is invalid; using feasibility search.\n",
+        chain
+      ))
+
+      # Run feasibility at most once per k, only when needed.
       if (is.null(feasible_starts)) {
-        cat("EM-derived start is invalid - checking feasibility\n")
         mc_res <- mc_feasibility_with_solutions(
-          dates = dates,
-          std_errors = std_errors,
+          dates = prepared_data$dates_original,
+          std_errors = prepared_data$std_errors,
           k = k_current,
-          age_ranges = age_ranges,
+          age_ranges = prepared_data$age.matrix,
           n_draws = 200,
           verbose = FALSE
         )
-        feasible_starts <- lapply(mc_res$solutions, function(solution) {
-          make_start(solution$assignments, solution$sampling_ages)
-        })
-        feasible_starts <- Filter(start_is_valid, feasible_starts)
-        cat(sprintf(
-          "Found %d checked, nonempty feasible starts in %d draws\n",
-          length(feasible_starts), mc_res$n_draws
-        ))
-        if (!length(feasible_starts)) {
-          cat("No valid starts found for k =", k_current, "- skipping this k.\n")
+
+        # Validate the stored states, not just their feasibility flags.
+        feasible_starts <- list()
+
+        for (solution in mc_res$solutions) {
+          solution_means <- compute_cluster_means(
+            solution$assignments,
+            prepared_data$dates_original + solution$sampling_ages,
+            prepared_data$std_errors,
+            k_current
+          )
+
+          if (valid_mcmc_start(
+            solution$assignments,
+            solution_means,
+            solution$sampling_ages,
+            prepared_data$age.matrix,
+            k_current
+          )) {
+            solution$cluster_means <- solution_means
+
+            feasible_starts[[length(feasible_starts) + 1L]] <- solution
+          }
+        }
+
+        if (length(feasible_starts) == 0L) {
+          cat(sprintf(
+            "No valid feasible starts found for k=%d; skipping this k.\n",
+            k_current
+          ))
           return(NULL)
         }
       }
-      start <- feasible_starts[[sample.int(length(feasible_starts), 1L)]]
-      cat(sprintf("Chain %d: using a randomly selected feasible start\n", chain))
-    } else {
-      cat(sprintf("Chain %d: using a checked EM-derived start\n", chain))
+
+      # Select a checked solution, keeping its corresponding ages.
+      solution <- feasible_starts[[
+        sample.int(length(feasible_starts), 1L)
+      ]]
+
+      cluster_assignments <- solution$assignments
+      sampling_ages <- solution$sampling_ages
+      initial_means <- solution$cluster_means
     }
 
-    stopifnot(start_is_valid(start))
+    # Final check of the exact state being passed to MCMC.
+    if (!valid_mcmc_start(
+      cluster_assignments,
+      initial_means,
+      sampling_ages,
+      prepared_data$age.matrix,
+      k_current
+    )) {
+      stop(
+        "Invalid MCMC initial state after EM/greedy/feasibility selection."
+      )
+    }
+
     mcmc_results[[chain]] <- mcmc_clustering(
-      dates = dates,
-      std_errors = std_errors,
-      init_cluster_means = start$means,
-      cluster_assignments = start$assignments,
+      dates = prepared_data$dates_original,
+      std_errors = prepared_data$std_errors,
+      init_cluster_means = initial_means,
+      cluster_assignments = cluster_assignments,
       k = k_current,
-      sampling_ages = start$sampling_ages,
+      sampling_ages = sampling_ages,
       sample_ages = sample_age_est,
-      age_ranges = age_ranges
+      age_ranges = prepared_data$age.matrix
     )
   }
 
-  # Pick best result (common to all paths)
-  ll_vals <- sapply(
+  # Keep the existing best-chain selection and plotting behaviour.
+  ll_vals <- vapply(
     mcmc_results,
-    function(x) x$result$final_log_likelihood_best_sampling_ages[1]
+    function(x) {
+      x$result$final_log_likelihood_best_sampling_ages[1]
+    },
+    numeric(1)
   )
-  best_idx <- which.max(ll_vals)
-  mcmc_result_best <- mcmc_results[[best_idx]]
+
+  mcmc_result_best <- mcmc_results[[which.max(ll_vals)]]
 
   if (plot) {
     plot_mcmc_results(
       mcmc_result_best,
       k = k_current,
       outfile_prefix = outfile,
-      plot == TRUE
+      plot = TRUE
     )
   }
 

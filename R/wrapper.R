@@ -144,6 +144,15 @@ admixplorer <- function(infile, outfile, method = "GLOBETROTTER",
         ". Continuing with k =", paste(completed_ks, collapse = ", "), "\n")
   }
 
+  # Step 3b: Per-individual likelihood heatmap across k (outlier detection)
+  if (plot && length(completed_ks) >= 2) {
+    plot_individual_likelihood_heatmap(
+      all_mcmc_results = all_mcmc_results,
+      pop.vec = prepared_data$pop.vec,
+      outfile = outfile
+    )
+  }
+
   # Step 4: Calculate likelihood improvements
   likelihood_analysis <- calculate_likelihood_improvements(
     all_mcmc_results = all_mcmc_results,
@@ -157,7 +166,6 @@ admixplorer <- function(infile, outfile, method = "GLOBETROTTER",
     cv = cv,
     all_mcmc_results = all_mcmc_results
   )
-  threshold_results$improvements <- likelihood_analysis$improvements
 
   # Step 6: Generate final output
   # Step 6: Generate final output
