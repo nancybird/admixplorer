@@ -22,8 +22,29 @@ mcmc_clustering <- function(dates, std_errors, init_cluster_means, cluster_assig
                             lambda = 10) {
 
   n <- length(dates)
+  inverse_variances <- 1 / std_errors^2
   lambda_age <- 1
   lambda_cluster <- 10
+  if (n < k) {
+    stop(sprintf("Cannot fit k=%d clusters with only n=%d individuals.", k, n))
+  }
+
+  # The caller must supply a checked starting state.
+  # Do not silently change assignments after validation.
+  if (
+    length(sampling_ages) != n ||
+    !valid_mcmc_start(
+      cluster_assignments,
+      init_cluster_means,
+      sampling_ages,
+      age_ranges,
+      k
+    )
+  ) {
+    stop(
+      "Invalid MCMC initial state: check cluster occupancy, means and sampling ages."
+    )
+  }
 
   # Helper function for confidence intervals
   get_ci <- function(x) {
@@ -35,18 +56,37 @@ mcmc_clustering <- function(dates, std_errors, init_cluster_means, cluster_assig
   fixed_age_inds <- which(age_ranges[, 1] == age_ranges[, 2])
   free_age_inds <- which(age_ranges[, 1] != age_ranges[, 2])
 
-  # Handle k=1 case
+  # Validate the mean actually returned by the fixed-age k=1 shortcut.
   if (k == 1 && (!sample_ages || length(free_age_inds) == 0)) {
-    return(handle_k1_case(dates, std_errors, sampling_ages, n, lambda))
+    shortcut_mean <- compute_cluster_means(
+      cluster_assignments,
+      dates + sampling_ages,
+      std_errors,
+      k
+    )
+
+    if (!valid_mcmc_start(
+      cluster_assignments,
+      shortcut_mean,
+      sampling_ages,
+      age_ranges,
+      k
+    )) {
+      stop(
+        "The fixed-age k=1 solution violates the time-traveller constraint."
+      )
+    }
+
+    return(handle_k1_case(
+      dates, std_errors, sampling_ages, n, lambda
+    ))
   }
 
   # Initialize MCMC variables
   acceptance_rate <- 0
   time_traveler_log <- list()
 
-  # Lambda-specific likelihood tracking (KEPT AS REQUESTED)
-  log_likelihoods_lambda1 <- c()
-  log_likelihoods_lambda10 <- c()
+  # Lambda-specific likelihood tracking
   log_likelihood_trace_lambda10 <- numeric(num_iter)
 
   current_cluster_means <- init_cluster_means
@@ -54,7 +94,7 @@ mcmc_clustering <- function(dates, std_errors, init_cluster_means, cluster_assig
 
   # Calculate initial likelihood
   log_likelihood <- nig_log_likelihood(cluster_assignments, current_cluster_means,
-                                       std_errors, adjusted_dates, n, lambda)$total
+                                       std_errors, adjusted_dates, n, lambda, age_ranges=age_ranges)$total
 
   # Storage for post burn-in samples
   log_likelihoods_lambda1_post_burn_in <- numeric(0)
@@ -84,6 +124,7 @@ mcmc_clustering <- function(dates, std_errors, init_cluster_means, cluster_assig
     proposed_assignments <- cluster_assignments
     proposed_sampling_ages <- sampling_ages
     move_type <- NULL
+    empty_cluster_proposed <- FALSE
 
     # Choose move type and set appropriate lambda
     if (sample_ages && length(free_age_inds) && (k == 1 || stats::runif(1) < 0.5)) {
@@ -108,41 +149,48 @@ mcmc_clustering <- function(dates, std_errors, init_cluster_means, cluster_assig
                                                  age_ranges = age_ranges)$total
 
     # Update proposed cluster means and check for time travelers
-    for (j in 1:k) {
-      if (sum(proposed_assignments == j) > 0) {
-        cluster_dates <- proposed_adjusted_dates[proposed_assignments == j]
-        cluster_errors <- std_errors[proposed_assignments == j]
-        weights <- 1 / cluster_errors^2
-        proposed_means[j] <- sum(cluster_dates * weights) / sum(weights)
+    if (!empty_cluster_proposed) {
+      for (j in 1:k) {
+        if (sum(proposed_assignments == j) > 0) {
+          cluster_dates <- proposed_adjusted_dates[proposed_assignments == j]
+          cluster_errors <- std_errors[proposed_assignments == j]
+          weights <- inverse_variances[proposed_assignments == j]
+          proposed_means[j] <- sum(cluster_dates * weights) / sum(weights)
 
-        # Check for time travelers
-        if (!is.null(age_ranges) && !is.null(sampling_ages)) {
-          cluster_inds <- which(proposed_assignments == j)
-          time_travelers <- which(proposed_means[j] < age_ranges[cluster_inds, 1])
-          if (length(time_travelers) > 0) {
-            time_traveler_inds <- cluster_inds[time_travelers]
-            time_traveler_log[[length(time_traveler_log) + 1]] <- list(
-              iter = iter,
-              cluster = j,
-              individuals = time_traveler_inds
-            )
+          # Check for time travelers
+          if (!is.null(age_ranges) && !is.null(sampling_ages)) {
+            cluster_inds <- which(proposed_assignments == j)
+            time_travelers <- which(proposed_means[j] < age_ranges[cluster_inds, 1])
+            if (length(time_travelers) > 0) {
+              time_traveler_inds <- cluster_inds[time_travelers]
+              time_traveler_log[[length(time_traveler_log) + 1]] <- list(
+                iter = iter,
+                cluster = j,
+                individuals = time_traveler_inds
+              )
+            }
           }
         }
       }
+
+
+      # Relabel clusters by mean
+      valid <- !is.na(proposed_means)
+      ordered_clusters <- order(proposed_means[valid])
+      relabel_map <- rep(NA, k)
+      relabel_map[which(valid)] <- match(which(valid), ordered_clusters)
+      proposed_assignments <- relabel_map[proposed_assignments]
+      proposed_means <- proposed_means[order(proposed_means, na.last = TRUE)]
+
+      # Calculate new likelihood
+      new_log_likelihood <- nig_log_likelihood(proposed_assignments, proposed_means,
+                                               std_errors, proposed_adjusted_dates,
+                                               n, lambda_used, age_ranges = age_ranges)$total
+    } else {
+      # Empty-cluster move: automatic rejection, keep state unchanged
+      proposed_means <- current_cluster_means
+      new_log_likelihood <- current_log_likelihood
     }
-
-    # Relabel clusters by mean
-    valid <- !is.na(proposed_means)
-    ordered_clusters <- order(proposed_means[valid])
-    relabel_map <- rep(NA, k)
-    relabel_map[which(valid)] <- match(which(valid), ordered_clusters)
-    proposed_assignments <- relabel_map[proposed_assignments]
-    proposed_means <- proposed_means[order(proposed_means, na.last = TRUE)]
-
-    # Calculate new likelihood
-    new_log_likelihood <- nig_log_likelihood(proposed_assignments, proposed_means,
-                                             std_errors, proposed_adjusted_dates,
-                                             n, lambda_used, age_ranges = age_ranges)$total
 
 
     # Accept/reject step
@@ -166,12 +214,7 @@ mcmc_clustering <- function(dates, std_errors, init_cluster_means, cluster_assig
       }
     }
 
-    # Store likelihoods based on move type (KEPT AS REQUESTED)
-    if (move_type == "age") {
-      log_likelihoods_lambda1 <- c(log_likelihoods_lambda1, new_log_likelihood)
-    } else {
-      log_likelihoods_lambda10 <- c(log_likelihoods_lambda10, new_log_likelihood)
-    }
+
     # Record current log-likelihood at lambda_cluster for diagnostics
     log_likelihood_trace_lambda10[iter] <-
       nig_log_likelihood(cluster_assignments, current_cluster_means,
@@ -181,14 +224,10 @@ mcmc_clustering <- function(dates, std_errors, init_cluster_means, cluster_assig
     # Store samples after burn-in
     if (iter > burn_in && (iter - burn_in) %% thin == 0) {
       # Co-clustering matrix
-      for (i_pair in 1:(n - 1)) {
-        for (j_pair in (i_pair + 1):n) {
-          if (cluster_assignments[i_pair] == cluster_assignments[j_pair]) {
-            co_clustering_matrix[i_pair, j_pair] <- co_clustering_matrix[i_pair, j_pair] + 1
-            co_clustering_matrix[j_pair, i_pair] <- co_clustering_matrix[j_pair, i_pair] + 1
-          }
-        }
-      }
+      # Co-clustering matrix
+      same_cluster <- outer(cluster_assignments, cluster_assignments, "==")
+      diag(same_cluster) <- FALSE
+      co_clustering_matrix <- co_clustering_matrix + same_cluster
 
       # Store lambda-specific likelihoods post burn-in
       if (move_type == "age") {

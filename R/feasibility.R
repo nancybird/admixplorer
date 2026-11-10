@@ -4,9 +4,24 @@
 
 # Helper: test one assignment for ancient time-traveler violations
 test_valid_assignment <- function(
-    full_assign, dates, std_errors, age_ranges, sampling_ages, verbose=FALSE
+    full_assign, dates, std_errors, age_ranges, sampling_ages,
+    verbose = FALSE, k = max(full_assign)
 ) {
-  k <- max(full_assign)
+  # Reject invalid labels and empty requested clusters.
+  if (
+    length(full_assign) != length(dates) ||
+    any(!is.finite(full_assign)) ||
+    any(full_assign != floor(full_assign)) ||
+    any(full_assign < 1L | full_assign > k) ||
+    any(tabulate(full_assign, nbins = k) == 0L)
+  ) {
+    return(list(
+      ok = FALSE,
+      bad = integer(0),
+      means = rep(NA_real_, k)
+    ))
+  }
+
   means <- numeric(k)
   bad_inds <- integer(0)
 
@@ -55,7 +70,7 @@ test_clustering_feasibility <- function(
     return(list(
       feasible          = TRUE,
       strategy          = "none_needed",
-      assignments       = NULL,
+      assignments = sample(rep(seq_len(k), length.out = n)),
       any_infeasible    = FALSE,  # new: we never saw a bad assignment
       infeasible_count  = 0       # new: count of bad assignments tested
     ))
@@ -91,7 +106,7 @@ test_clustering_feasibility <- function(
     asn <- rep(1,n)
     asn[ancient] <- bins
   }
-  res1 <- test_valid_assignment(asn, dates, std_errors, age_ranges, sampling_ages, verbose)
+  res1 <- test_valid_assignment(asn, dates, std_errors, age_ranges, sampling_ages, verbose, k=k)
   update_infeas(res1)  # NEW
   if (res1$ok) {
     if (verbose) {
@@ -118,7 +133,7 @@ test_clustering_feasibility <- function(
     asn <- rep(1,n)
     asn[ancient] <- bins
   }
-  res2 <- test_valid_assignment(asn, dates, std_errors, age_ranges, sampling_ages, verbose)
+  res2 <- test_valid_assignment(asn, dates, std_errors, age_ranges, sampling_ages, verbose, k=k)
   update_infeas(res2)  # NEW
   if (res2$ok) {
     if (verbose) {
@@ -141,7 +156,7 @@ test_clustering_feasibility <- function(
   for (i in seq_len(min(k-1,length(sorted_old)))) {
     asn[ancient[sorted_old[i]]] <- i+1
   }
-  res3 <- test_valid_assignment(asn, dates, std_errors, age_ranges, sampling_ages, verbose)
+  res3 <- test_valid_assignment(asn, dates, std_errors, age_ranges, sampling_ages, verbose, k=k)
   update_infeas(res3)  # NEW
   if (res3$ok) {
     if (verbose) {
@@ -164,7 +179,7 @@ test_clustering_feasibility <- function(
   for (i in seq_len(min(k-1,length(sorted_young)))) {
     asn[ancient[sorted_young[i]]] <- i+1
   }
-  res4 <- test_valid_assignment(asn, dates, std_errors, age_ranges, sampling_ages, verbose)
+  res4 <- test_valid_assignment(asn, dates, std_errors, age_ranges, sampling_ages, verbose, k=k)
   update_infeas(res4)  # NEW
   if (res4$ok) {
     if (verbose) {
@@ -185,7 +200,7 @@ test_clustering_feasibility <- function(
   if (n >= k) {
     km <- try(kmeans(dates_adj_all, centers=k, nstart=5)$cluster, silent=TRUE)
     if (!inherits(km,"try-error")) {
-      res5 <- test_valid_assignment(km, dates, std_errors, age_ranges, sampling_ages, verbose)
+      res5 <- test_valid_assignment(km, dates, std_errors, age_ranges, sampling_ages, verbose, k=k)
       update_infeas(res5)  # NEW
       if (res5$ok) {
         if (verbose) {
@@ -208,7 +223,7 @@ test_clustering_feasibility <- function(
   last_rr <- NULL
   for (i in seq_len(max_attempts)) {
     rnd <- sample(1:k, n, replace=TRUE)
-    rr  <- test_valid_assignment(rnd, dates, std_errors, age_ranges, sampling_ages, verbose=FALSE)
+    rr  <- test_valid_assignment(rnd, dates, std_errors, age_ranges, sampling_ages, verbose=FALSE, k=k)
     update_infeas(rr)  # NEW
     last_rr <- rr
     if (rr$ok) {
@@ -232,7 +247,7 @@ test_clustering_feasibility <- function(
     combos <- expand.grid(rep(list(1:k), n))
     for (i in seq_len(min(nrow(combos),1000))) {
       asn <- as.numeric(combos[i,])
-      rr  <- test_valid_assignment(asn, dates, std_errors, age_ranges, sampling_ages, verbose=FALSE)
+      rr  <- test_valid_assignment(asn, dates, std_errors, age_ranges, sampling_ages, verbose=FALSE, k=k)
       update_infeas(rr)  # NEW
       last_rr <- rr
       if (rr$ok) {

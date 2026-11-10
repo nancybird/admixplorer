@@ -60,8 +60,8 @@ em_clustering_original <- function(dates, std_errors, k = 2, cluster_means=sampl
 
 # Two-stage EM clustering with CORRECT time traveler logic
 em_clustering <- function(dates, std_errors, k = 2, cluster_means=sample(dates, k),
-                                    max_iter = 10000, epsilon = 1e-6, n_init = 10,
-                                    age_ranges = NULL, sampling_ages = NULL) {
+                          max_iter = 10000, epsilon = 1e-6, n_init = 10,
+                          age_ranges = NULL, sampling_ages = NULL) {
 
   cat("=== Stage 1: Initial EM clustering without constraints ===\n")
 
@@ -87,9 +87,9 @@ em_clustering <- function(dates, std_errors, k = 2, cluster_means=sample(dates, 
         if (length(time_travelers) > 0) {
           time_traveler_inds <- cluster_inds[time_travelers]
           all_time_travelers <- c(all_time_travelers, time_traveler_inds)
-         # cat("Cluster", j, "mean:", round(cluster_mean, 2), "years ago")
-        #  cat(" - Time travelers:", paste(time_traveler_inds, collapse = ", "))
-         # cat(" (sampling ages:", paste(round(age_ranges[time_traveler_inds, 2], 2), collapse = ", "), ")\n")
+          # cat("Cluster", j, "mean:", round(cluster_mean, 2), "years ago")
+          #  cat(" - Time travelers:", paste(time_traveler_inds, collapse = ", "))
+          # cat(" (sampling ages:", paste(round(age_ranges[time_traveler_inds, 2], 2), collapse = ", "), ")\n")
           time_traveler_found <- TRUE
         }
       }
@@ -99,7 +99,7 @@ em_clustering <- function(dates, std_errors, k = 2, cluster_means=sample(dates, 
       unique_time_travelers <- unique(all_time_travelers)
       cat("\nWARNING: Time travelers detected! Individual(s)", paste(unique_time_travelers, collapse = ", "),
           "would have joint admixture date more recent than their sampling age.\n")
-    #  cat("We suggest removing individual(s)", paste(unique_time_travelers, collapse = ", "),
+      #  cat("We suggest removing individual(s)", paste(unique_time_travelers, collapse = ", "),
       #   "OR increasing k to", k+1, "\n")
 
       cat("\n=== Stage 2: Re-running EM clustering with time traveler constraints ===\n")
@@ -253,139 +253,108 @@ em_clustering_safe <- function(dates, std_errors, k = 2, cluster_means=sample(da
 #' @keywords internal
 process_single_k <- function(k_current, prepared_data, chains, sample_age_est, plot, outfile) {
   cat("\n>>> Processing k =", k_current, "<<<\n")
+  n_inds <- length(prepared_data$dates_original)
+  if (n_inds < k_current) {
+    cat(sprintf("Skipping k=%d: only %d individual(s) available (need n >= k).\n",
+                k_current, n_inds))
+    return(NULL)
+  }
+  mcmc_results <- vector("list", chains)
+  dates <- prepared_data$dates_original
+  std_errors <- prepared_data$std_errors
+  age_ranges <- prepared_data$age.matrix
 
-  mcmc_results <- list()
+  # Fit EM once per k, before attempting feasibility testing.
+  cat("Running EM for initial cluster assignments\n")
+  em_result <- em_clustering_original(
+    dates + prepared_data$midpoint_ages,
+    std_errors = std_errors,
+    n_init = 10000,
+    k = k_current
+  )
 
-  # Check if there are any ancients (non-zero age ranges)
-  has_ancients <- sum(prepared_data$age.matrix[,2]) > 0
-
-  if (!has_ancients) {
-    # No ancients - go straight to EM initialization
-    cat("No ancients detected - using EM initialisation\n")
-
-    em_result <- em_clustering_original(
-      prepared_data$dates_original + prepared_data$midpoint_ages,
-      std_errors = prepared_data$std_errors,
-      n_init = 10000,
-      k = k_current
-    )
-    initial_means <- em_result$cluster_means
-    cluster_assignments <- apply(em_result$responsibilities, 1, which.max)
-
-    # Run MCMC with EM initialization
-    for (chain in 1:chains) {
-      print(chain)
-      mcmc_results[[chain]] <- mcmc_clustering(
-        dates = prepared_data$dates_original,
-        std_errors = prepared_data$std_errors,
-        init_cluster_means = initial_means,
-        cluster_assignments = cluster_assignments,
-        k = k_current,
-        sampling_ages = runif(
-          length(prepared_data$dates_original),
-          prepared_data$age.matrix[, 1],
-          prepared_data$age.matrix[, 2]
-        ),
-        sample_ages = sample_age_est,
-        age_ranges = prepared_data$age.matrix
-      )
-    }
-
+  responsibilities <- em_result$responsibilities
+  em_assignments <- if (
+    is.matrix(responsibilities) &&
+    all(dim(responsibilities) == c(n_inds, k_current)) &&
+    all(is.finite(responsibilities))
+  ) {
+    apply(responsibilities, 1, which.max)
   } else {
-    # Has ancients - need to check feasibility first
-    cat("Ancients detected - checking feasibility\n")
+    rep(NA_integer_, n_inds)
+  }
 
-    mc_res <- mc_feasibility_with_solutions(
-      dates      = prepared_data$dates_original,
-      std_errors = prepared_data$std_errors,
-      k          = k_current,
-      age_ranges = prepared_data$age.matrix,
-      n_draws    = 200,
-      verbose    = FALSE
-    )
-
-    cat(sprintf(
-      "Feasible in %d / %d draws (%.1f%%)\n",
-      mc_res$n_feasible, mc_res$n_draws, 100 * mc_res$prop_feasible
-    ))
-
-    cat(sprintf(
-      "Draws with at least one infeasible assignment: %d / %d (%.1f%%)\n",
-      mc_res$n_draws_with_infeasible_assignments,
-      mc_res$n_draws,
-      100 * mc_res$prop_draws_with_infeasible
-    ))
-
-    if (mc_res$n_feasible == 0) {
-      cat("No feasible solutions found for k =", k_current, ". Skipping to next k.\n")
-      return(NULL)
-    }
-
-    # Strong “all solutions feasible” criterion:
-    # every draw has some feasible assignment, and we never saw an infeasible one
-    all_solutions_look_feasible <- (
-      mc_res$prop_feasible == 1.0 &&
-        mc_res$prop_draws_with_infeasible == 0
-    )
-
-    if (all_solutions_look_feasible) {
-      cat("All tested assignments were feasible across all draws - using EM initialisation\n")
-
-      em_result <- em_clustering_original(
-        prepared_data$dates_original + prepared_data$midpoint_ages,
-        std_errors = prepared_data$std_errors,
-        n_init = 10000,
-        k = k_current
+  # Draw starting ages and compute hard-assignment means, as in the MCMC.
+  make_start <- function(assignments, sampling_ages) {
+    means <- rep(NA_real_, k_current)
+    labels_ok <- length(assignments) == n_inds &&
+      all(is.finite(assignments)) &&
+      all(assignments == floor(assignments)) &&
+      all(assignments >= 1L & assignments <= k_current)
+    if (labels_ok) {
+      means <- compute_cluster_means(
+        assignments, dates + sampling_ages, std_errors, k_current
       )
-      initial_means <- em_result$cluster_means
-      cluster_assignments <- apply(em_result$responsibilities, 1, which.max)
-
-      for (chain in 1:chains) {
-        print(chain)
-        mcmc_results[[chain]] <- mcmc_clustering(
-          dates = prepared_data$dates_original,
-          std_errors = prepared_data$std_errors,
-          init_cluster_means = initial_means,
-          cluster_assignments = cluster_assignments,
-          k = k_current,
-          sampling_ages = runif(
-            length(prepared_data$dates_original),
-            prepared_data$age.matrix[, 1],
-            prepared_data$age.matrix[, 2]
-          ),
-          sample_ages = sample_age_est,
-          age_ranges = prepared_data$age.matrix
-        )
-      }
-
-    } else {
-      cat("Feasible solutions exist, but infeasible assignments were observed - using random feasible solutions for initialisation\n")
-
-      for (chain in 1:chains) {
-        # Pick a random feasible solution
-        random_idx <- sample(1:mc_res$n_feasible, 1)
-        solution   <- mc_res$solutions[[random_idx]]
-
-        # Compute initial means from that feasible solution
-        initial_means <- compute_cluster_means(
-          solution$assignments,
-          prepared_data$dates_original + solution$sampling_ages,
-          prepared_data$std_errors,
-          k_current
-        )
-
-        mcmc_results[[chain]] <- mcmc_clustering(
-          dates               = prepared_data$dates_original,
-          std_errors          = prepared_data$std_errors,
-          init_cluster_means  = initial_means,
-          cluster_assignments = solution$assignments,
-          k                   = k_current,
-          sampling_ages       = solution$sampling_ages,
-          sample_ages         = sample_age_est,
-          age_ranges          = prepared_data$age.matrix
-        )
-      }
     }
+    list(assignments = assignments, means = means, sampling_ages = sampling_ages)
+  }
+  start_is_valid <- function(start) {
+    valid_mcmc_start(
+      start$assignments, start$means, start$sampling_ages,
+      age_ranges, k_current
+    )
+  }
+  feasible_starts <- NULL
+
+  for (chain in seq_len(chains)) {
+    start <- make_start(
+      em_assignments,
+      runif(n_inds, age_ranges[, 1], age_ranges[, 2])
+    )
+
+    if (!start_is_valid(start)) {
+      # Only run the feasibility search when an EM-derived start fails.
+      # Cache the checked solutions so later chains do not repeat the search.
+      if (is.null(feasible_starts)) {
+        cat("EM-derived start is invalid - checking feasibility\n")
+        mc_res <- mc_feasibility_with_solutions(
+          dates = dates,
+          std_errors = std_errors,
+          k = k_current,
+          age_ranges = age_ranges,
+          n_draws = 200,
+          verbose = FALSE
+        )
+        feasible_starts <- lapply(mc_res$solutions, function(solution) {
+          make_start(solution$assignments, solution$sampling_ages)
+        })
+        feasible_starts <- Filter(start_is_valid, feasible_starts)
+        cat(sprintf(
+          "Found %d checked, nonempty feasible starts in %d draws\n",
+          length(feasible_starts), mc_res$n_draws
+        ))
+        if (!length(feasible_starts)) {
+          cat("No valid starts found for k =", k_current, "- skipping this k.\n")
+          return(NULL)
+        }
+      }
+      start <- feasible_starts[[sample.int(length(feasible_starts), 1L)]]
+      cat(sprintf("Chain %d: using a randomly selected feasible start\n", chain))
+    } else {
+      cat(sprintf("Chain %d: using a checked EM-derived start\n", chain))
+    }
+
+    stopifnot(start_is_valid(start))
+    mcmc_results[[chain]] <- mcmc_clustering(
+      dates = dates,
+      std_errors = std_errors,
+      init_cluster_means = start$means,
+      cluster_assignments = start$assignments,
+      k = k_current,
+      sampling_ages = start$sampling_ages,
+      sample_ages = sample_age_est,
+      age_ranges = age_ranges
+    )
   }
 
   # Pick best result (common to all paths)
@@ -407,4 +376,3 @@ process_single_k <- function(k_current, prepared_data, chains, sample_age_est, p
 
   return(mcmc_result_best)
 }
-
