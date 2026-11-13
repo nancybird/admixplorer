@@ -4,58 +4,199 @@
 
 
 # Original EM clustering function (without time traveler checks)
-em_clustering_original <- function(dates, std_errors, k = 2, cluster_means=sample(dates, k), max_iter = 10000, epsilon = 1e-6, n_init = 10) {
+em_clustering_original <- function(dates, std_errors, k = 2, cluster_means=NULL, max_iter = 10000, epsilon = 1e-6, n_init = 10) {
+  # Validate inputs.
+  positive_integer <- function(x) {
+    is.numeric(x) &&
+      length(x) == 1L &&
+      is.finite(x) &&
+      x >= 1 &&
+      x == floor(x)
+  }
+
+  if (
+    !is.numeric(dates) ||
+    length(dates) == 0L ||
+    any(!is.finite(dates))
+  ) {
+    stop("dates must be a nonempty, finite numeric vector.")
+  }
+
   n <- length(dates)
-  best_log_likelihood <- -Inf
-  best_cluster_means <- NULL
-  best_responsibilities <- NULL
-  for (init in 1:n_init) {
-    # Random initialization of cluster means
 
-    log_likelihood <- -Inf
-    diff <- Inf
-    iter <- 0
+  if (
+    !is.numeric(std_errors) ||
+    length(std_errors) != n ||
+    any(!is.finite(std_errors)) ||
+    any(std_errors <= 0)
+  ) {
+    stop("std_errors must contain one finite, positive value per date.")
+  }
 
-    while (!is.na(diff) && diff > epsilon && iter < max_iter) {
-      iter <- iter + 1
+  if (!positive_integer(k) || k > n) {
+    stop("k must be a positive integer no greater than length(dates).")
+  }
 
-      # E-step: Calculate responsibilities
-      responsibilities <- matrix(0, n, k)
-      for (i in 1:n) {
-        for (j in 1:k) {
-          responsibilities[i, j] <- dnorm(dates[i], mean = cluster_means[j], sd = std_errors[i])
-        }
-        total_responsibilities <- sum(responsibilities[i, ])
-        if (total_responsibilities == 0) total_responsibilities <- 1e-10
-        responsibilities[i, ] <- responsibilities[i, ] / total_responsibilities
-      }
+  if (!positive_integer(max_iter) || !positive_integer(n_init)) {
+    stop("max_iter and n_init must be positive integers.")
+  }
 
-      # M-step: Update cluster means
-      new_cluster_means <- numeric(k)
-      for (j in 1:k) {
-        total_responsibilities_j <- sum(responsibilities[, j])
-        if (total_responsibilities_j == 0) total_responsibilities_j <- 1e-10  # Avoid division by zero
-        new_cluster_means[j] <- sum(responsibilities[, j] * dates) / total_responsibilities_j
-      }
+  if (
+    !is.numeric(epsilon) ||
+    length(epsilon) != 1L ||
+    !is.finite(epsilon) ||
+    epsilon <= 0
+  ) {
+    stop("epsilon must be finite and positive.")
+  }
 
-      # Check for convergence with log-likelihood calculation
-      new_log_likelihood <- sum(log(rowSums(responsibilities + 1e-10)))
-      diff <- abs(new_log_likelihood - log_likelihood)
-      if (is.nan(diff)) break
-      log_likelihood <- new_log_likelihood
-      cluster_means <- new_cluster_means
+  if (
+    !is.null(cluster_means) &&
+    (
+      !is.numeric(cluster_means) ||
+      length(cluster_means) != k ||
+      any(!is.finite(cluster_means))
+    )
+  ) {
+    stop("cluster_means must be NULL or a finite numeric vector of length k.")
+  }
+
+  # E-step and observed-data log-likelihood.
+  expectation <- function(means) {
+    log_density <- matrix(NA_real_, nrow = n, ncol = k)
+
+    for (j in seq_len(k)) {
+      log_density[, j] <- stats::dnorm(
+        dates,
+        mean = means[j],
+        sd = std_errors,
+        log = TRUE
+      )
     }
 
-    if (log_likelihood > best_log_likelihood) {
-      best_log_likelihood <- log_likelihood
-      best_cluster_means <- cluster_means
-      best_responsibilities <- responsibilities
+    # Row-wise log-sum-exp.
+    row_max <- apply(log_density, 1L, max)
+
+    if (any(!is.finite(row_max))) {
+      stop(
+        "Numerical overflow in EM: check the scale of dates and std_errors."
+      )
+    }
+
+    shifted <- sweep(log_density, 1L, row_max, "-")
+    log_normalizer <- row_max + log(rowSums(exp(shifted)))
+
+    log_responsibilities <- sweep(
+      log_density, 1L, log_normalizer, "-"
+    )
+
+    # Equal mixing probabilities contribute -log(k) per individual.
+    log_likelihood <- sum(log_normalizer - log(k))
+
+    if (!is.finite(log_likelihood)) {
+      stop("Nonfinite EM log-likelihood: check the input scale.")
+    }
+
+    list(
+      log_responsibilities = log_responsibilities,
+      log_likelihood = log_likelihood
+    )
+  }
+
+  log_precision <- -2 * log(std_errors)
+
+  best_fit <- NULL
+  start_log_likelihoods <- rep(NA_real_, n_init)
+  start_converged <- rep(FALSE, n_init)
+
+  for (init in seq_len(n_init)) {
+    # Explicit means, if supplied, are used for the first start only.
+    # Every additional start independently samples observed date indices.
+    if (init == 1L && !is.null(cluster_means)) {
+      means <- as.numeric(cluster_means)
+    } else {
+      means <- dates[sample.int(n, size = k, replace = FALSE)]
+    }
+
+    current <- expectation(means)
+    trace <- numeric(max_iter + 1L)
+    trace[1L] <- current$log_likelihood
+    converged <- FALSE
+
+    for (iter in seq_len(max_iter)) {
+      new_means <- means
+
+      # Precision- and responsibility-weighted M-step.
+      for (j in seq_len(k)) {
+        log_weights <-
+          current$log_responsibilities[, j] + log_precision
+
+        max_log_weight <- max(log_weights)
+
+        # If a component has numerically zero support, retain its mean.
+        # Any empty hard-assignment cluster is repaired by the caller.
+        if (!is.finite(max_log_weight)) {
+          next
+        }
+
+        weights <- exp(log_weights - max_log_weight)
+        weights <- weights / sum(weights)
+
+        new_means[j] <- sum(weights * dates)
+      }
+
+      # Evaluate responsibilities and likelihood at the UPDATED means.
+      updated <- expectation(new_means)
+
+      improvement <-
+        updated$log_likelihood - current$log_likelihood
+
+      # Allow only small decreases attributable to floating-point rounding.
+      rounding_tolerance <-
+        100 * .Machine$double.eps *
+        (1 + abs(current$log_likelihood))
+
+      if (improvement < -rounding_tolerance) {
+        stop(
+          "EM log-likelihood decreased beyond numerical tolerance."
+        )
+      }
+
+      means <- new_means
+      current <- updated
+      trace[iter + 1L] <- current$log_likelihood
+
+      # Absolute change in the actual observed-data log-likelihood.
+      if (abs(improvement) <= epsilon) {
+        converged <- TRUE
+        break
+      }
+    }
+
+    start_log_likelihoods[init] <- current$log_likelihood
+    start_converged[init] <- converged
+
+    if (
+      is.null(best_fit) ||
+      current$log_likelihood > best_fit$log_likelihood
+    ) {
+      best_fit <- list(
+        cluster_means = means,
+        responsibilities = exp(current$log_responsibilities),
+        log_likelihood = current$log_likelihood,
+        log_likelihood_trace = trace[seq_len(iter + 1L)],
+        converged = converged,
+        iterations = iter,
+        best_start = init
+      )
     }
   }
-  list(
-    cluster_means = best_cluster_means,
-    responsibilities = best_responsibilities
-  )
+
+  best_fit$start_log_likelihoods <- start_log_likelihoods
+  best_fit$start_converged <- start_converged
+
+
+  return(best_fit)
 }
 
 # Two-stage EM clustering with CORRECT time traveler logic
