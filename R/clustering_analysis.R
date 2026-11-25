@@ -42,7 +42,7 @@ apply_threshold_selection <- function(improvements, method, cv, all_mcmc_results
   threshold_k2_k3        <- base_thresholds$k2_to_k3
   threshold_k3_k4        <- base_thresholds$k3_to_k4
   clustering_strength_threshold <- base_thresholds$clustering_strength
-  cv_cutoff <- base_thresholds$cv_threshold %||% 1
+  cv_cutoff <- if (is.null(base_thresholds$cv_threshold)) 1 else base_thresholds$cv_threshold
 
   # 4. Helper for checking improvements
   check_improvement <- function(name, threshold) {
